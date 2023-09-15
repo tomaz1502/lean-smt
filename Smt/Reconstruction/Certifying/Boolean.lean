@@ -233,6 +233,19 @@ theorem deMorgan₃ : ∀ {l : List Prop}, ¬ orN l → andN (notList l) :=
                        have ih := @deMorgan₃ (h₂::t) t₂
                        exact ⟨t₁, ih⟩
 
+theorem deMorgan₄ : ∀ {l : List Prop}, andN (notList l) → ¬ orN l :=
+  by intros l h
+     exact match l with
+     | [] => by simp [orN]
+     | [t] => by simp[orN]; simp [andN, notList, map] at h; exact h
+     | h₁::h₂::t =>
+       by simp [orN]
+          simp [andN, notList] at h
+          apply deMorganSmall₂
+          have ⟨pf₁, pf₂⟩ := h
+          have IH := @deMorgan₄ (h₂ :: t) pf₂
+          exact ⟨pf₁, IH⟩
+
 theorem cnfAndNeg : ∀ (l : List Prop), andN l ∨ orN (notList l) :=
   by intro l
      apply orComm

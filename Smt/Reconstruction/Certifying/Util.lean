@@ -79,8 +79,10 @@ def pull! [Inhabited α] (i j : Nat) (xs : List α) : List α :=
 def subList (i j : Nat) (xs : List α) : List α :=
   List.take (j + 1 - i) (xs.drop i)
 
-def permutateList [Inhabited α] : List α → List Nat → List α :=
-  λ xs => List.foldr (λ i => (· :: ·) (List.get! xs i)) []
+-- O(n)?
+def permutateList [Inhabited α] : List α → List Nat → List α := fun xs is =>
+  let axs : Array α := ⟨xs⟩
+  List.foldr (fun i acc => axs.get! i :: acc) [] is
 
 def findIndex? [BEq α] : List α → α → Option Nat
 | [], _ => none
