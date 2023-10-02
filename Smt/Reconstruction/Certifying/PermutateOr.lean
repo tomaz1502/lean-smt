@@ -14,7 +14,7 @@ open Lean Elab Tactic Meta
 
 namespace Smt.Reconstruction.Certifying
 
-def invertPermutation : List Nat → MetaM (List Nat) := fun p => do
+def invertPermutation {m : Type → Type v} [Monad m] : List Nat → m (List Nat) := fun p => do
   let size := p.length
   let p: Array Nat := ⟨p⟩
   let mut answer: Array Nat := ⟨List.replicate size 0⟩
@@ -49,7 +49,7 @@ def permutateOrCore (val : Expr) (perm : List Nat)
   let goal ← createOrChain (permutateList props perm)
   let notGoal := mkApp (mkConst `Not) goal
   withLocalDeclD (← mkFreshId) notGoal $ fun bv => do
-    let liPerm := listExpr (permutateList props perm) (Expr.sort Level.zero)
+    let liPerm := listExpr (permutateList props perm) (.sort .zero)
     let li := listExpr props (Expr.sort Level.zero)
     let notAndPerm := mkApp2 (mkConst ``deMorgan₃) liPerm bv
     let terms ← splitAnd suffIdx notAndPerm
@@ -88,5 +88,9 @@ def parsePermuteOr : Syntax → TacticM (List Nat × Option Nat)
     replaceMainGoal [mvar']
     evalTactic (← `(tactic| exact $(mkIdent fname)))
     trace[smt.debug] m!"[permutateOr] end time: {← IO.monoNanosNow}ns"
+
+example : A ∨ B ∨ C ∨ D ∨ E → E ∨ C ∨ D ∨ B ∨ A := by
+  intro h
+  permutateOr h, [4, 2, 3, 1, 0]
 
 end Smt.Reconstruction.Certifying
