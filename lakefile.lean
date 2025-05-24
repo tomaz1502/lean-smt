@@ -11,7 +11,8 @@ require cvc5 from
 require mathlib from
   git "https://github.com/leanprover-community/mathlib4.git" @ "v4.20.0-rc5"
 
-package smt
+package smt where
+  precompileModules := true
 
 @[default_target]
 lean_lib Smt
@@ -70,18 +71,17 @@ Run tests.
 where
   runTest (test : FilePath) (expected : FilePath) : ScriptM UInt32 := do
     IO.println s!"Start : {test}"
-    let some cvc5 ← findPackage? ``cvc5 | return 2
-    let some libcvc5 := cvc5.findLeanLib? `cvc5 | return 3
-    let libcvc5 := s!"--plugin={libcvc5.sharedLibFile}"
     let out ← IO.Process.output {
-      cmd := (← getLean).toString
-      args := #[libcvc5, test.toString]
+      cmd := (← getLake).toString
+      args := #["--log-level=error", "lean", test.toString]
       env := ← getAugmentedEnv
     }
+    let some smt ← findPackage? `smt | return 2
+    let output := out.stdout.replace "\\" "/"
     let expected ← IO.FS.readFile expected
     let expected := expected.crlfToLf
     -- TODO: renable disjunct once cvc5 proofs become are more stable.
-    if /- ¬out.stderr.isEmpty ∨ -/ out.stdout.replace "\\" "/" ≠ expected then
+    if /- ¬out.stderr.isEmpty ∨ -/ output.replace s!"{smt.dir}/" "" ≠ expected then
       IO.println s!"Failed: {test}"
       IO.println s!"Stderr:\n{out.stderr}"
       IO.println s!"Stdout:\n{out.stdout}"
@@ -116,15 +116,14 @@ where
   updateTest (test : FilePath) : ScriptM UInt32 := do
     let expected := test.withExtension "expected"
     IO.println s!"Start : {test}"
-    let some cvc5 ← findPackage? ``cvc5 | return 2
-    let some libcvc5 := cvc5.findLeanLib? `cvc5 | return 3
-    let libcvc5 := s!"--plugin={libcvc5.sharedLibFile}"
     let out ← IO.Process.output {
-      cmd := (← getLean).toString
-      args := #[libcvc5, test.toString]
+      cmd := (← getLake).toString
+      args := #["--log-level=error", "lean", test.toString]
       env := ← getAugmentedEnv
     }
-    IO.FS.writeFile expected out.stdout
+    let some smt ← findPackage? `smt | return 2
+    let output := out.stdout.replace s!"{smt.dir}/" ""
+    IO.FS.writeFile expected output
     return 0
 
 /--
@@ -138,12 +137,9 @@ Use Firefox Profiler UI to view profiling information.
 script profile args do
   let file : FilePath := args[0]!
   let log : FilePath := args[1]!
-  let some cvc5 ← findPackage? ``cvc5 | return 2
-  let some libcvc5 := cvc5.findLeanLib? `cvc5 | return 3
-  let libcvc5 := s!"--plugin={libcvc5.sharedLibFile}"
   let child ← IO.Process.spawn {
-    cmd := (← getLean).toString
-    args := #[libcvc5, "-Dtrace.profiler=true", s!"-Dtrace.profiler.output={log}", file.toString]
-    env := ← getAugmentedEnv
+      cmd := (← getLake).toString
+      args := #["--log-level=error", "lean", "-Dtrace.profiler=true", s!"-Dtrace.profiler.output={log}", file.toString]
+      env := ← getAugmentedEnv
   }
   child.wait

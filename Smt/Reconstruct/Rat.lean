@@ -5,22 +5,24 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Abdalrhman Mohamed
 -/
 
-import Smt.Reconstruct
+import Qq
 import Smt.Reconstruct.Builtin.Lemmas
 import Smt.Reconstruct.Rat.Core
 import Smt.Reconstruct.Rat.Lemmas
-import Smt.Reconstruct.Rat.Polynorm
+import Smt.Reconstruct.Rat.Tactic
 import Smt.Reconstruct.Rat.Rewrites
+import Smt.Reconstruct.Rewrite
+import Smt.Reconstruct.State
 
 namespace Smt.Reconstruct.Rat
 
 open Lean Qq
 
-@[smt_sort_reconstruct] def reconstructRatSort : SortReconstructor := fun s => do match s.getKind with
+def reconstructRatSort : SortReconstructor := fun s => do match s.getKind with
   | .REAL_SORT => return q(Rat)
   | _          => return none
 
-@[smt_term_reconstruct] def reconstructRat : TermReconstructor := fun t => do match t.getKind with
+def reconstructRat : TermReconstructor := fun t => do match t.getKind with
   | .SKOLEM => match t.getSkolemId! with
     | .DIV_BY_ZERO => return q(fun (x : Rat) => x / 0)
     | _ => return none
@@ -382,7 +384,7 @@ where
     else if k == .GT && il == true && ir == false && sign == false then pure ``Rat.gt_of_sub_eq_neg_int_left
     else throwError "[arith_poly_norm_rel]: invalid combination of kind, integer operands, and sign: {k}, {il}, {ir}, {sign}"
 
-@[smt_proof_reconstruct] def reconstructRatProof : ProofReconstructor := fun pf => do match pf.getRule with
+def reconstructRatProof : ProofReconstructor := fun pf => do match pf.getRule with
   | .DSL_REWRITE
   | .THEORY_REWRITE => reconstructRewrite pf
   | .ARITH_SUM_UB =>

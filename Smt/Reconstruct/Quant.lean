@@ -5,8 +5,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Abdalrhman Mohamed
 -/
 
-import Smt.Reconstruct
+import Qq
 import Smt.Reconstruct.Quant.Lemmas
+import Smt.Reconstruct.State
 
 /-- Takes an array `xs` of free variables or metavariables and a term `e` that may contain those variables, and abstracts and binds them as existential quantifiers.
 
@@ -35,7 +36,7 @@ def getVariableName (t : cvc5.Term) : Name :=
       t.getSymbol!.toName
   else Name.num `x t.getId
 
-@[smt_term_reconstruct] def reconstructQuant : TermReconstructor := fun t => do match t.getKind with
+def reconstructQuant : TermReconstructor := fun t => do match t.getKind with
   | .FORALL =>
     let mut xs : Array (Name × (Array Expr → ReconstructM Expr)) := #[]
     for x in t[0]! do
@@ -242,7 +243,7 @@ def reconstructRewrite (pf : cvc5.Proof) : ReconstructM (Option Expr) := do
       addThm (← reconstructTerm pf.getResult) q(@Quant.var_elim_eq $α $t)
   | _ => return none
 
-@[smt_proof_reconstruct] def reconstructQuantProof : ProofReconstructor := fun pf => do match pf.getRule with
+def reconstructQuantProof : ProofReconstructor := fun pf => do match pf.getRule with
   | .THEORY_REWRITE => reconstructRewrite pf
   | .CONG =>
     let k := pf.getResult[0]!.getKind

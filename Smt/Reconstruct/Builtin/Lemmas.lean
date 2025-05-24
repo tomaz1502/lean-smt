@@ -7,6 +7,14 @@ Authors: Abdalrhman Mohamed
 
 import Smt.Reconstruct.Prop.Core
 
+theorem Eq.same_root (hac : a = c) (hbc : b = c) : a = b := hac ▸ hbc ▸ rfl
+
+theorem Eq.trans₂ {a b c d : α} (h₁ : a = b) (h₂ : b = c) (h₃ : c = d) : a = d :=
+  h₁ ▸ h₂ ▸ h₃
+
+theorem ite_congr' {α} [Decidable c₁] [Decidable c₂] {x₁ x₂ y₁ y₂ : α} (h₁ : c₁ = c₂) (h₂ : x₁ = x₂) (h₃ : y₁ = y₂) : ite c₁ x₁ y₁ = ite c₂ x₂ y₂ := by
+  congr
+
 namespace Smt.Reconstruct.Builtin
 
 theorem iteElim1 [hc : Decidable c] : ite c a b → ¬ c ∨ a := by

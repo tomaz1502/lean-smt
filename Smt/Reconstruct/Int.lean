@@ -5,23 +5,24 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Abdalrhman Mohamed
 -/
 
-import Smt.Reconstruct
+import Qq
 import Smt.Reconstruct.Builtin.Lemmas
 import Smt.Reconstruct.Int.Core
 import Smt.Reconstruct.Int.Lemmas
-import Smt.Reconstruct.Int.Polynorm
+import Smt.Reconstruct.Int.Tactic
 import Smt.Reconstruct.Int.Rewrites
+import Smt.Reconstruct.State
 
 namespace Smt.Reconstruct.Int
 
 open Lean
 open Qq
 
-@[smt_sort_reconstruct] def reconstructIntSort : SortReconstructor := fun s => do match s.getKind with
+def reconstructIntSort : SortReconstructor := fun s => do match s.getKind with
   | .INTEGER_SORT => return q(Int)
   | _             => return none
 
-@[smt_term_reconstruct] def reconstructInt : TermReconstructor := fun t => do match t.getKind with
+def reconstructInt : TermReconstructor := fun t => do match t.getKind with
   | .SKOLEM => match t.getSkolemId! with
     | .INT_DIV_BY_ZERO => return q(fun (x : Int) => x / 0)
     | .MOD_BY_ZERO => return q(fun (x : Int) => x % 0)
@@ -171,9 +172,9 @@ def reconstructRewrite (pf : cvc5.Proof) : ReconstructM (Option Expr) := do
     addThm q(($t = $s) = ($t ≥ $s ∧ $t ≤ $s)) q(@Rewrite.eq_elim $t $s)
   | .ARITH_MOD_OVER_MOD =>
     let c : Q(Int) ← reconstructTerm pf.getArguments[1]!
-    let ts : Q(List Int) ← reconstructTerms pf.getArguments[2]!.getChildren
+    let ts : Q(List Int) ← reconstructTerms 0 q(Int) pf.getArguments[2]!.getChildren
     let r : Q(Int) ← reconstructTerm pf.getArguments[3]!
-    let ss : Q(List Int) ← reconstructTerms pf.getArguments[4]!.getChildren
+    let ss : Q(List Int) ← reconstructTerms 0 q(Int) pf.getArguments[4]!.getChildren
     let h : Q(($c = 0) = False) ← reconstructProof pf.getChildren[0]!
     addThm q(Int.addN ($ts ++ $r % $c :: $ss) % $c = Int.addN ($ts ++ $r :: $ss) % $c)
            q(@Rewrite.mod_over_mod $c $ts $r $ss $h)
@@ -400,7 +401,7 @@ where
     else if k == .GT && sign == false then pure ``Int.gt_of_sub_eq_neg
     else throwError "[arith_poly_norm_rel]: invalid combination of kind and sign: {k}, {sign}"
 
-@[smt_proof_reconstruct] def reconstructIntProof : ProofReconstructor := fun pf => do match pf.getRule with
+def reconstructIntProof : ProofReconstructor := fun pf => do match pf.getRule with
   | .DSL_REWRITE
   | .THEORY_REWRITE => reconstructRewrite pf
   | .ARITH_SUM_UB =>

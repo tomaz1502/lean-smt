@@ -1,0 +1,1 @@
+Test/Unit/Real.lean:1:0: error: import Batteries.Data.Rat.Lemmas failed, environment already contains 'Rat.ext.match_1' from Smt.Reconstruct.Rat.Core

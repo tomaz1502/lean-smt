@@ -5,25 +5,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Abdalrhman Mohamed, Harun Khan
 -/
 
-import Lean
-import Qq
-
-import Smt.Recognizers
-
-private theorem Int.neg_congr {x y : Int} (h : x = y) : -x = -y := by
-  simp [h]
-
-private theorem Int.add_congr {x₁ x₂ y₁ y₂ : Int} (h₁ : x₁ = x₂) (h₂ : y₁ = y₂) : x₁ + y₁ = x₂ + y₂ := by
-  simp [h₁, h₂]
-
-private theorem Int.sub_congr {x₁ x₂ y₁ y₂ : Int} (h₁ : x₁ = x₂) (h₂ : y₁ = y₂) : x₁ - y₁ = x₂ - y₂ := by
-  simp [h₁, h₂]
-
-private theorem Int.mul_congr {x₁ x₂ y₁ y₂ : Int} (h₁ : x₁ = x₂) (h₂ : y₁ = y₂) : x₁ * y₁ = x₂ * y₂ := by
-  simp [h₁, h₂]
-
-private theorem Eq.trans₂' (hba : b = a) (hbc : b = c) (hcd : c = d) : a = d := hba ▸ hbc ▸ hcd ▸ rfl
-
 namespace Smt.Reconstruct.Int.PolyNorm
 
 abbrev Var := Nat
@@ -36,23 +17,6 @@ structure Monomial where
 deriving Inhabited, Repr, DecidableEq
 
 namespace Monomial
-
-open Qq in
-def toExpr (m : Monomial) (ppCtx : Var → Q(Int)) : Q(Int) :=
-  if h : m.vars = [] then
-    toExprCoeff m.coeff
-  else
-    if m.coeff = 1 then
-      (m.vars.drop 1).foldl (fun acc v => q($acc * $(ppCtx v))) (ppCtx (m.vars.head h))
-    else
-      m.vars.foldl (fun acc v => q($acc * $(ppCtx v))) (toExprCoeff m.coeff)
-where
-  toExprCoeff (c : Int) : Q(Int) :=
-    let l : Q(Nat) := Lean.mkRawNatLit c.natAbs
-    if c ≥ 0 then
-      q(OfNat.ofNat $l : Int)
-    else
-      q(-OfNat.ofNat $l : Int)
 
 def neg (m : Monomial) : Monomial :=
   { m with coeff := -m.coeff }
@@ -70,11 +34,11 @@ where
     | [] => [x]
     | y :: ys => if x ≤ y then x :: y :: ys else y :: insert x ys
 
-def denote (ctx : Context) (m : Monomial) : Int :=
+def eval (ctx : Context) (m : Monomial) : Int :=
   m.coeff * m.vars.foldl (fun acc v => acc * ctx v) 1
 
-theorem denote_neg {m : Monomial} : m.neg.denote ctx = -m.denote ctx := by
-  simp only [neg, denote, Int.neg_mul_eq_neg_mul]
+theorem eval_neg {m : Monomial} : m.neg.eval ctx = -m.eval ctx := by
+  simp only [neg, eval, Int.neg_mul_eq_neg_mul]
 
 section
 
@@ -114,12 +78,12 @@ theorem foldl_mul_insert {ctx : Context} :
                  foldl_assoc Int.mul_assoc, ih]
       rw [←Int.mul_assoc, Int.mul_comm (ctx x) (ctx y), Int.mul_assoc]
 
-theorem denote_add {m n : Monomial} (h : m.vars = n.vars) :
-  (m.add n h).denote ctx = m.denote ctx + n.denote ctx := by
-  simp only [add, denote, Int.add_mul, h]
+theorem eval_add {m n : Monomial} (h : m.vars = n.vars) :
+  (m.add n h).eval ctx = m.eval ctx + n.eval ctx := by
+  simp only [add, eval, Int.add_mul, h]
 
-theorem denote_mul {m₁ m₂ : Monomial} : (m₁.mul m₂).denote ctx = m₁.denote ctx * m₂.denote ctx := by
-  simp only [denote, mul, Int.mul_assoc]; congr 1
+theorem eval_mul {m₁ m₂ : Monomial} : (m₁.mul m₂).eval ctx = m₁.eval ctx * m₂.eval ctx := by
+  simp only [eval, mul, Int.mul_assoc]; congr 1
   rw [← Int.mul_assoc, Int.mul_comm _ m₂.coeff, Int.mul_assoc]; congr 1
   induction m₁.vars with
   | nil => simp [Int.mul_assoc]
@@ -131,15 +95,6 @@ end Monomial
 abbrev Polynomial := List Monomial
 
 namespace Polynomial
-
-open Qq in
-def toExpr (p : Polynomial) (ppCtx : Var → Q(Int)) : Q(Int) :=
-  go p
-where
-  go : Polynomial → Q(Int)
-    | [] => q(0)
-    | [m] => m.toExpr ppCtx
-    | m :: ms =>q($(m.toExpr ppCtx) + $(go ms))
 
 def neg (p : Polynomial) : Polynomial :=
   p.map Monomial.neg
@@ -171,12 +126,12 @@ def mulMonomial (m : Monomial) (p : Polynomial) : Polynomial :=
 def mul (p q : Polynomial) : Polynomial :=
   p.foldl (fun acc m => (q.mulMonomial m).add acc) []
 
-def denote (ctx : Context) (p : Polynomial) : Int :=
-  p.foldl (fun acc m => acc + m.denote ctx) 0
+def eval (ctx : Context) (p : Polynomial) : Int :=
+  p.foldl (fun acc m => acc + m.eval ctx) 0
 
 theorem foldl_add_insert (ctx : Context) :
-  List.foldl (fun z a => z + (Monomial.denote ctx a)) 0 (add.insert m p) =
-  (Monomial.denote ctx m) + List.foldl (fun z a => z + (Monomial.denote ctx a)) 0 p := by
+  List.foldl (fun z a => z + (Monomial.eval ctx a)) 0 (add.insert m p) =
+  (Monomial.eval ctx m) + List.foldl (fun z a => z + (Monomial.eval ctx a)) 0 p := by
   induction p with
   | nil => simp [add.insert]
   | cons n p ih =>
@@ -184,72 +139,72 @@ theorem foldl_add_insert (ctx : Context) :
     split <;> rename_i hlt <;> simp only [List.foldl_cons, Int.add_comm 0, Monomial.foldl_assoc Int.add_assoc]
     · split <;> rename_i heq
       · split <;> rename_i hneq
-        · rw [←Int.add_assoc, Int.add_comm, ←Monomial.denote_add heq]
-          simp [Monomial.denote, hneq]
-        · simp [-Int.add_zero, Int.add_comm 0, Monomial.foldl_assoc Int.add_assoc, Monomial.denote_add, heq, Int.add_assoc]
+        · rw [←Int.add_assoc, Int.add_comm, ←Monomial.eval_add heq]
+          simp [Monomial.eval, hneq]
+        · simp [-Int.add_zero, Int.add_comm 0, Monomial.foldl_assoc Int.add_assoc, Monomial.eval_add, heq, Int.add_assoc]
       · simp only [List.foldl_cons, Int.add_comm 0, ih, Monomial.foldl_assoc Int.add_assoc]
-        rw [←Int.add_assoc, Int.add_comm (Monomial.denote ctx n), Int.add_assoc]
+        rw [←Int.add_assoc, Int.add_comm (Monomial.eval ctx n), Int.add_assoc]
 
-theorem denote_neg {p : Polynomial} : p.neg.denote ctx = -p.denote ctx := by
-  simp only [denote, neg]
+theorem eval_neg {p : Polynomial} : p.neg.eval ctx = -p.eval ctx := by
+  simp only [eval, neg]
   induction p with
   | nil => simp
   | cons m p ih =>
-    simp only [List.foldl_cons, Int.add_comm 0, Monomial.foldl_assoc Int.add_assoc,Int.neg_add, ←ih, List.map, Monomial.denote_neg]
+    simp only [List.foldl_cons, Int.add_comm 0, Monomial.foldl_assoc Int.add_assoc,Int.neg_add, ←ih, List.map, Monomial.eval_neg]
 
-theorem denote_add {p q : Polynomial} : (p.add q).denote ctx = p.denote ctx + q.denote ctx := by
-  simp only [denote, add]
+theorem eval_add {p q : Polynomial} : (p.add q).eval ctx = p.eval ctx + q.eval ctx := by
+  simp only [eval, add]
   induction p with
   | nil => simp [add.insert]
   | cons x ys ih =>
     simp only [List.foldr_cons, List.foldl_cons, Int.add_comm 0, Monomial.foldl_assoc Int.add_assoc, Int.add_assoc]
     rw [← ih, foldl_add_insert]
 
-theorem denote_sub {p q : Polynomial} : (p.sub q).denote ctx = p.denote ctx - q.denote ctx := by
-  simp only [sub, denote_neg, denote_add, Int.sub_eq_add_neg]
+theorem eval_sub {p q : Polynomial} : (p.sub q).eval ctx = p.eval ctx - q.eval ctx := by
+  simp only [sub, eval_neg, eval_add, Int.sub_eq_add_neg]
 
-theorem denote_mulMonomial {p : Polynomial} : (p.mulMonomial m).denote ctx = m.denote ctx * p.denote ctx := by
-  simp only [denote, mulMonomial, add]
+theorem eval_mulMonomial {p : Polynomial} : (p.mulMonomial m).eval ctx = m.eval ctx * p.eval ctx := by
+  simp only [eval, mulMonomial, add]
   induction p with
   | nil => simp
   | cons n p ih =>
     simp only [List.foldl_cons, List.foldr_cons, Int.add_comm 0, Monomial.foldl_assoc Int.add_assoc, Int.mul_add, ←ih]
-    simp [foldl_add_insert, Monomial.denote_mul]
+    simp [foldl_add_insert, Monomial.eval_mul]
 
-theorem denote_cons {p : List Monomial} {ctx : Context} : denote ctx (m :: p) = m.denote ctx + denote ctx p := by
-  simp only [denote, List.foldl_cons, Int.add_comm 0, Monomial.foldl_assoc Int.add_assoc]
+theorem eval_cons {p : List Monomial} {ctx : Context} : eval ctx (m :: p) = m.eval ctx + eval ctx p := by
+  simp only [eval, List.foldl_cons, Int.add_comm 0, Monomial.foldl_assoc Int.add_assoc]
 
-theorem denote_nil_add : denote ctx (p.add []) = denote ctx p := by
+theorem eval_nil_add : eval ctx (p.add []) = eval ctx p := by
   induction p with
   | nil => simp [add]
   | cons n p ih =>
-    simp [denote_add, List.foldr_cons, denote_cons, ih, show denote ctx [] = 0 by rfl]
+    simp [eval_add, List.foldr_cons, eval_cons, ih, show eval ctx [] = 0 by rfl]
 
-theorem denote_add_insert {g : Monomial → Polynomial} :
-  denote ctx (List.foldl (fun acc m => (g m).add acc) n p) = denote ctx n + denote ctx (List.foldl (fun acc m => (g m).add acc) [] p) := by
+theorem eval_add_insert {g : Monomial → Polynomial} :
+  eval ctx (List.foldl (fun acc m => (g m).add acc) n p) = eval ctx n + eval ctx (List.foldl (fun acc m => (g m).add acc) [] p) := by
   revert n
   induction p with
-  | nil => simp [denote]
+  | nil => simp [eval]
   | cons k p ih =>
     intro n
     simp only [List.foldl_cons, List.foldr, @ih n]
-    rw [ih, @ih ((g k).add []), ← Int.add_assoc, denote_nil_add, denote_add, Int.add_comm _ (denote ctx n)]
+    rw [ih, @ih ((g k).add []), ← Int.add_assoc, eval_nil_add, eval_add, Int.add_comm _ (eval ctx n)]
 
-theorem denote_foldl {g : Monomial → Polynomial} :
-  denote ctx (List.foldl (fun acc m => ((g m).add (acc))) [] p) = List.foldl (fun acc m => (g m).denote ctx + acc) 0 p := by
+theorem eval_foldl {g : Monomial → Polynomial} :
+  eval ctx (List.foldl (fun acc m => ((g m).add (acc))) [] p) = List.foldl (fun acc m => (g m).eval ctx + acc) 0 p := by
   induction p with
-  | nil => simp [denote]
+  | nil => simp [eval]
   | cons n p ih =>
     simp only [List.foldl_cons, Int.add_comm, List.foldr] at *
-    rw [Int.add_comm 0, Monomial.foldl_assoc Int.add_assoc, ←ih, denote_add_insert, denote_nil_add]
+    rw [Int.add_comm 0, Monomial.foldl_assoc Int.add_assoc, ←ih, eval_add_insert, eval_nil_add]
 
-theorem denote_mul {p q : Polynomial} : (p.mul q).denote ctx = p.denote ctx * q.denote ctx := by
+theorem eval_mul {p q : Polynomial} : (p.mul q).eval ctx = p.eval ctx * q.eval ctx := by
   simp only [mul]
   induction p with
-  | nil => simp [denote]
+  | nil => simp [eval]
   | cons n p ih =>
-    simp only [List.foldl_cons, denote_cons, Int.add_mul, ← ih]
-    rw [denote_foldl, denote_add_insert, ←denote_mulMonomial, denote_nil_add, denote_foldl]
+    simp only [List.foldl_cons, eval_cons, Int.add_mul, ← ih]
+    rw [eval_foldl, eval_add_insert, ←eval_mulMonomial, eval_nil_add, eval_foldl]
 
 end Polynomial
 
@@ -264,147 +219,41 @@ deriving Inhabited, Repr
 
 namespace Expr
 
-def toPolynomial : Expr → Polynomial
+def toPoly : Expr → Polynomial
   | val v => if v = 0 then [] else [{ coeff := v, vars := [] }]
   | var v => [{ coeff := 1, vars := [v] }]
-  | neg a => a.toPolynomial.neg
-  | add a b => Polynomial.add a.toPolynomial b.toPolynomial
-  | sub a b => Polynomial.sub a.toPolynomial b.toPolynomial
-  | mul a b => Polynomial.mul a.toPolynomial b.toPolynomial
+  | neg a => a.toPoly.neg
+  | add a b => Polynomial.add a.toPoly b.toPoly
+  | sub a b => Polynomial.sub a.toPoly b.toPoly
+  | mul a b => Polynomial.mul a.toPoly b.toPoly
 
-def denote (ctx : Context) : Expr → Int
+def eval (ctx : Context) : Expr → Int
   | val v => v
   | var v => ctx v
-  | neg a => -a.denote ctx
-  | add a b => a.denote ctx + b.denote ctx
-  | sub a b => a.denote ctx - b.denote ctx
-  | mul a b => a.denote ctx * b.denote ctx
+  | neg a => -a.eval ctx
+  | add a b => a.eval ctx + b.eval ctx
+  | sub a b => a.eval ctx - b.eval ctx
+  | mul a b => a.eval ctx * b.eval ctx
 
-theorem denote_toPolynomial {e : Expr} : e.denote ctx = e.toPolynomial.denote ctx := by
+theorem eval_toPoly {e : Expr} : e.eval ctx = e.toPoly.eval ctx := by
   induction e with
   | val v =>
-    simp only [denote, toPolynomial]
+    simp only [eval, toPoly]
     split <;> rename_i hv
     · rewrite [hv]; rfl
-    · simp [Polynomial.denote, Monomial.denote]
+    · simp [Polynomial.eval, Monomial.eval]
   | var v =>
-    simp [denote, toPolynomial, Polynomial.denote, Monomial.denote]
+    simp [eval, toPoly, Polynomial.eval, Monomial.eval]
   | neg a ih =>
-    simp only [denote, toPolynomial, Polynomial.denote_neg, ih]
+    simp only [eval, toPoly, Polynomial.eval_neg, ih]
   | add a b ih₁ ih₂ =>
-    simp only [denote, toPolynomial, Polynomial.denote_add, ih₁, ih₂]
+    simp only [eval, toPoly, Polynomial.eval_add, ih₁, ih₂]
   | sub a b ih₁ ih₂ =>
-    simp only [denote, toPolynomial, Polynomial.denote_sub, ih₁, ih₂]
+    simp only [eval, toPoly, Polynomial.eval_sub, ih₁, ih₂]
   | mul a b ih₁ ih₂ =>
-    simp only [denote, toPolynomial, Polynomial.denote_mul, ih₁, ih₂]
+    simp only [eval, toPoly, Polynomial.eval_mul, ih₁, ih₂]
 
-theorem denote_eq_from_toPolynomial_eq {e₁ e₂ : Expr} (h : e₁.toPolynomial = e₂.toPolynomial) : e₁.denote ctx = e₂.denote ctx := by
-  rw [denote_toPolynomial, denote_toPolynomial, h]
+theorem eval_eq_from_toPoly_eq {e₁ e₂ : Expr} (h : e₁.toPoly = e₂.toPoly) : e₁.eval ctx = e₂.eval ctx := by
+  rw [eval_toPoly, eval_toPoly, h]
 
-end PolyNorm.Expr
-
-open Lean Qq
-
-abbrev PolyM := StateT (Array Q(Int)) MetaM
-
-def getIndex (e : Q(Int)) : PolyM Nat := do
-  let is ← get
-  if let some i := is.findIdx? (· == e) then
-    return i
-  else
-    let size := is.size
-    set (is.push e)
-    return size
-
-partial def reify (e : Q(Int)) : PolyM Q(PolyNorm.Expr) := do
-  if let some n := e.natLitOf? q(Int) then
-    return q(.val (OfNat.ofNat $n))
-  else if let some e := e.negOf? q(Int) then
-    return q(.neg $(← reify e))
-  else if let some (x, y) := e.hAddOf? q(Int) q(Int) then
-    return q(.add $(← reify x) $(← reify y))
-  else if let some (x, y) := e.hSubOf? q(Int) q(Int) then
-    return q(.sub $(← reify x) $(← reify y))
-  else if let some (x, y) := e.hMulOf? q(Int) q(Int) then
-    return q(.mul $(← reify x) $(← reify y))
-  else
-    let v : Nat ← getIndex e
-    return q(.var $v)
-
-def polyNorm (mv : MVarId) : MetaM Unit := do
-  let some (_, (l : Q(Int)), (r : Q(Int))) := (← mv.getType).eq?
-    | throwError "[poly_norm] expected an equality, got {← mv.getType}"
-  let (l, is) ← (reify l).run #[]
-  let (r, is) ← (reify r).run is
-  let ctx : Q(PolyNorm.Context) ← if h : 0 < is.size
-    then do let is : Q(RArray Int) ← (RArray.ofArray is h).toExpr q(Int) id; pure q(«$is».get)
-    else pure q(fun _ => 0)
-  let hp : Q(«$l».toPolynomial = «$r».toPolynomial) := (.app q(@Eq.refl PolyNorm.Polynomial) q(«$l».toPolynomial))
-  let he := q(@PolyNorm.Expr.denote_eq_from_toPolynomial_eq $ctx $l $r $hp)
-  mv.assign he
-where
-  logPolynomial (e : Q(PolyNorm.Expr)) (es : Array Q(Int)) := do
-    let p ← unsafe Meta.evalExpr PolyNorm.Expr q(PolyNorm.Expr) e
-    let ppCtx := (es.getD · q(0))
-    logInfo m!"poly := {PolyNorm.Polynomial.toExpr p.toPolynomial ppCtx}"
-
-def nativePolyNorm (mv : MVarId) : MetaM Unit := do
-  let some (_, (l : Q(Int)), (r : Q(Int))) := (← mv.getType).eq?
-    | throwError "[poly_norm] expected an equality, got {← mv.getType}"
-  let (l, is) ← (reify l).run #[]
-  let (r, is) ← (reify r).run is
-  let ctx : Q(PolyNorm.Context) ← if h : 0 < is.size
-    then do let is : Q(RArray Int) ← (RArray.ofArray is h).toExpr q(Int) id; pure q(«$is».get)
-    else pure q(fun _ => 0)
-  let hp ← nativeDecide q(«$l».toPolynomial = «$r».toPolynomial)
-  let he := q(@PolyNorm.Expr.denote_eq_from_toPolynomial_eq $ctx $l $r $hp)
-  mv.assign he
-where
-  logPolynomial (e : Q(PolyNorm.Expr)) (es : Array Q(Int)) := do
-    let p ← unsafe Meta.evalExpr PolyNorm.Expr q(PolyNorm.Expr) e
-    let ppCtx := (es.getD · q(0))
-    logInfo m!"poly := {PolyNorm.Polynomial.toExpr p.toPolynomial ppCtx}"
-  nativeDecide (p : Q(Prop)) : MetaM Q($p) := do
-    let hp : Q(Decidable $p) ← Meta.synthInstance q(Decidable $p)
-    let auxDeclName ← mkNativeAuxDecl `_nativePolynorm q(Bool) q(decide $p)
-    let b : Q(Bool) := .const auxDeclName []
-    return .app q(@of_decide_eq_true $p $hp) (.app q(Lean.ofReduceBool $b true) q(Eq.refl true))
-  mkNativeAuxDecl (baseName : Name) (type value : Expr) : MetaM Name := do
-    let auxName ← match (← getEnv).asyncPrefix? with
-      | none          => Lean.mkAuxName baseName 1
-      | some declName => Lean.mkAuxName (declName ++ baseName) 1
-    let decl := Declaration.defnDecl {
-      name := auxName, levelParams := [], type, value
-      hints := .abbrev
-      safety := .safe
-    }
-    addAndCompile decl
-    pure auxName
-
-namespace Tactic
-
-syntax (name := polyNorm) "poly_norm" : tactic
-
-open Lean.Elab Tactic in
-@[tactic polyNorm] def evalPolyNorm : Tactic := fun _ =>
-  withMainContext do
-    let mv ← Tactic.getMainGoal
-    Int.polyNorm mv
-    replaceMainGoal []
-
-syntax (name := nativePolyNorm) "native_poly_norm" : tactic
-
-open Lean.Elab Tactic in
-@[tactic nativePolyNorm] def evalNativePolyNorm : Tactic := fun _ =>
-  withMainContext do
-    let mv ← Tactic.getMainGoal
-    Int.nativePolyNorm mv
-    replaceMainGoal []
-
-end Smt.Reconstruct.Int.Tactic
-
-example (x y z : Int) : 1 * (x + y) * z  = z * y + x * z := by
-  poly_norm
-
-example (x y z : Int) : 1 * (x + y) * z  = z * y + x * z := by
-  native_poly_norm
+end Smt.Reconstruct.Int.PolyNorm.Expr

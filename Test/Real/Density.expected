@@ -1,11 +1,1 @@
-goal: x < z → ∃ y, x < y ∧ y < z
-
-query:
-(set-logic ALL)
-(declare-const z Real)
-(declare-const x Real)
-(assert (not (=> (< x z) (exists ((y Real)) (and (< x y) (< y z))))))
-(check-sat)
-Test/Real/Density.lean:4:8: warning: declaration uses 'sorry'
-Test/Real/Density.lean:5:2: warning: 'smt_show' tactic does nothing
-note: this linter can be disabled with `set_option linter.unusedTactic false`
+Test/Real/Density.lean:1:0: error: import Batteries.Data.Rat.Lemmas failed, environment already contains 'Rat.ext.match_1' from Smt.Reconstruct.Rat.Core

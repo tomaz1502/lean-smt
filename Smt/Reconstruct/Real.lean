@@ -5,21 +5,23 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Abdalrhman Mohamed
 -/
 
-import Smt.Reconstruct
+import Qq
 import Smt.Reconstruct.Builtin.Lemmas
 import Smt.Reconstruct.Real.Lemmas
-import Smt.Reconstruct.Real.Polynorm
+import Smt.Reconstruct.Real.Tactic
 import Smt.Reconstruct.Real.Rewrites
+import Smt.Reconstruct.Rewrite
+import Smt.Reconstruct.State
 
 namespace Smt.Reconstruct.Real
 
 open Lean Qq
 
-@[smt_sort_reconstruct] def reconstructRealSort : SortReconstructor := fun s => do match s.getKind with
+def reconstructRealSort : SortReconstructor := fun s => do match s.getKind with
   | .REAL_SORT => return q(Real)
   | _          => return none
 
-@[smt_term_reconstruct] def reconstructReal : TermReconstructor := fun t => do match t.getKind with
+def reconstructReal : TermReconstructor := fun t => do match t.getKind with
   | .SKOLEM => match t.getSkolemId! with
     | .DIV_BY_ZERO => return q(fun (x : Real) => x / 0)
     | _ => return none
@@ -392,7 +394,7 @@ where
     else if k == .GT && il == true && ir == false && sign == false then pure ``Real.gt_of_sub_eq_neg_int_left
     else throwError "[arith_poly_norm_rel]: invalid combination of kind, integer operands, and sign: {k}, {il}, {ir}, {sign}"
 
-@[smt_proof_reconstruct] def reconstructRealProof : ProofReconstructor := fun pf => do match pf.getRule with
+def reconstructRealProof : ProofReconstructor := fun pf => do match pf.getRule with
   | .EVALUATE =>
     let (u, (α : Q(Sort u))) ← reconstructSortLevelAndSort pf.getResult[0]!.getSort
     let t  : Q($α) ← reconstructTerm pf.getResult[0]!

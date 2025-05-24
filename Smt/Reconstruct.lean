@@ -7,56 +7,56 @@ Authors: Abdalrhman Mohamed
 
 import cvc5
 import Qq
-
-import Smt.Attribute
+import Smt.Reconstruct.BitVec
+import Smt.Reconstruct.Builtin
+import Smt.Reconstruct.Int
+import Smt.Reconstruct.Prop
+import Smt.Reconstruct.Quant
+import Smt.Reconstruct.Rat
+-- import Smt.Reconstruct.Real
+import Smt.Reconstruct.UF
 
 namespace Smt
 
 open Lean
-open Attribute
-
-structure Reconstruct.Context where
-  /-- The user names of the variables in the local context. -/
-  userNames : Std.HashMap String FVarId := {}
-  /-- Whether to enable native components for proof reconstruction. Speeds up normalization and
-      reduction proof steps. However, it adds the Lean compiler to the trusted code base. -/
-  native : Bool := false
-
-structure Reconstruct.State where
-  termCache : Std.HashMap cvc5.Term Expr := {}
-  proofCache : Std.HashMap cvc5.Proof Expr := {}
-  count : Nat := 0
-  currAssums : Array Expr := #[]
-  skippedGoals : Array MVarId := #[]
-
-abbrev ReconstructM := ReaderT Reconstruct.Context (StateT Reconstruct.State MetaM)
-
-abbrev SortReconstructor := cvc5.Sort → ReconstructM (Option Expr)
-
-abbrev TermReconstructor := cvc5.Term → ReconstructM (Option Expr)
-
-abbrev ProofReconstructor := cvc5.Proof → ReconstructM (Option Expr)
 
 namespace Reconstruct
 
-def useNative : ReconstructM Bool :=
-  read >>= pure ∘ (·.native)
+def sortRcons := [
+  (Builtin.reconstructBuiltinSort, ``Builtin.reconstructBuiltinSort),
+  (Prop.reconstructPropSort, ``Prop.reconstructPropSort),
+  (UF.reconstructUS, ``UF.reconstructUS),
+  (Int.reconstructIntSort, ``Int.reconstructIntSort),
+  (Rat.reconstructRatSort,``Rat.reconstructRatSort),
+  -- (Real.reconstructRealSort, ``Real.reconstructRealSort),
+  (BitVec.reconstructBitVecSort, ``BitVec.reconstructBitVecSort)
+]
 
-private unsafe def getReconstructorsUnsafe (n : Name) (rcons : Type) : MetaM (List (rcons × Name)) := do
-  let env ← getEnv
-  let names := ((smtExt.getState env).getD n {}).toList
-  let mut reconstructors := []
-  for name in names do
-    let fn ← IO.ofExcept <| Id.run <| ExceptT.run <|
-      env.evalConst rcons Options.empty name
-    reconstructors := (fn, name) :: reconstructors
-  return reconstructors
+def termRcons := [
+  (Builtin.reconstructBuiltin, ``Builtin.reconstructBuiltin),
+  (Prop.reconstructProp, ``Prop.reconstructProp),
+  (UF.reconstructUF, ``UF.reconstructUF),
+  (Quant.reconstructQuant, ``Quant.reconstructQuant),
+  (Int.reconstructInt, ``Int.reconstructInt),
+  (Rat.reconstructRat, ``Rat.reconstructRat),
+  -- (Real.reconstructReal, ``Real.reconstructReal),
+  (BitVec.reconstructBitVec, ``BitVec.reconstructBitVec)
+]
 
-@[implemented_by getReconstructorsUnsafe]
-opaque getReconstructors (n : Name) (rcons : Type) : MetaM (List (rcons × Name))
+def proofRcons := [
+  (Builtin.reconstructBuiltinProof, ``Builtin.reconstructBuiltinProof),
+  (Prop.reconstructPropProof, ``Prop.reconstructPropProof),
+  (UF.reconstructUFProof, ``UF.reconstructUFProof),
+  (Quant.reconstructQuantProof, ``Quant.reconstructQuantProof),
+  (Int.reconstructIntProof, ``Int.reconstructIntProof),
+  (Rat.reconstructRatProof, ``Rat.reconstructRatProof),
+  -- (Real.reconstructRealProof, ``Real.reconstructRealProof),
+  (BitVec.reconstructBitVecProof, ``BitVec.reconstructBitVecProof)
+]
 
-def reconstructSort (s : cvc5.Sort) : ReconstructM Expr := do
-  let rs ← getReconstructors ``SortReconstructor SortReconstructor
+@[export smt_reconstruct_sort]
+def reconstructSortImpl (s : cvc5.Sort) : ReconstructM Expr := do
+  let rs := sortRcons
   go rs s
 where
   go (rs : List (SortReconstructor × Name)) (s : cvc5.Sort) : ReconstructM Expr := do
@@ -66,26 +66,10 @@ where
         return e
     throwError "Failed to reconstruct sort {s} with kind {s.getKind}"
 
-def reconstructSortLevelAndSort (s : cvc5.Sort) : ReconstructM (Level × Expr) := do
-  let t ← reconstructSort s
-  let .sort u ← Meta.inferType t | throwError "expected a sort, but got\n{t}"
-  return ⟨u, t⟩
-
-def withNewTermCache (k : ReconstructM α) : ReconstructM α := do
-  let termCache := (← get).termCache
-  modify fun state => { state with termCache := {} }
-  let r ← k
-  modify fun state => { state with termCache := termCache }
-  return r
-
-def traceReconstructTerm (t : cvc5.Term) (r : Except Exception Expr) : ReconstructM MessageData :=
-  return m!"{t} ↦ " ++ match r with
-    | .ok e    => m!"{e}"
-    | .error _ => m!"{bombEmoji}"
-
-def reconstructTerm : cvc5.Term → ReconstructM Expr := withTermCache fun t => do
+@[export smt_reconstruct_term]
+def reconstructTermImpl : cvc5.Term → ReconstructM Expr := withTermCache fun t => do
   withTraceNode ((`smt.reconstruct.term).str t.getKind.toString) (traceReconstructTerm t) do
-    let rs ← getReconstructors ``TermReconstructor TermReconstructor
+    let rs := termRcons
     go rs t
 where
   withTermCache (r : cvc5.Term → ReconstructM Expr) (t : cvc5.Term) : ReconstructM Expr := do
@@ -105,84 +89,16 @@ where
     throwError "Failed to reconstruct term {t} with kind {t.getKind}"
 
 open Qq in
-def reconstructTerms {u} {α : Q(Type $u)} (ts : Array cvc5.Term) : ReconstructM Q(List $α) :=
+@[export smt_reconstruct_terms]
+def reconstructTermsImpl (u) (α : Q(Type $u)) (ts : Array cvc5.Term) : ReconstructM Q(List $α) :=
   let f := fun t ys => do
     let a : Q($α) ← reconstructTerm t
     return q($a :: $ys)
   ts.foldrM f q([])
 
-def withNewProofCache (k : ReconstructM α) : ReconstructM α := do
-  let proofCache := (← get).proofCache
-  modify fun state => { state with proofCache := {} }
-  let r ← k
-  modify fun state => { state with proofCache := proofCache }
-  return r
-
-def withProofCache (r : cvc5.Proof → ReconstructM Expr) (pf : cvc5.Proof) : ReconstructM Expr := do
-  match (← get).proofCache[pf]? with
-  | some e => return e
-  | none   => reconstruct r pf
-where
-  reconstruct r pf := do
-    let e ← r pf
-    modify fun state => { state with proofCache := state.proofCache.insert pf e }
-    return e
-
-def incCount : ReconstructM Nat :=
-  modifyGet fun state => (state.count, { state with count := state.count + 1 })
-
-def withAssums (as : Array Expr) (k : ReconstructM α) : ReconstructM α := do
-  modify fun state => { state with currAssums := state.currAssums ++ as }
-  let r ← k
-  modify fun state => { state with currAssums := state.currAssums.take (state.currAssums.size - as.size) }
-  return r
-
-def findAssumWithType? (t : Expr) : ReconstructM (Option Expr) := do
-  for a in (← get).currAssums.reverse do
-    let t' ← a.fvarId!.getType
-    if t' == t then
-      return some a
-  return none
-
-def skipStep (mv : MVarId) : ReconstructM Unit := mv.withContext do
-  let state ← get
-  let t ← Meta.mkForallFVars state.currAssums (← mv.getType)
-  let ctx := state.currAssums.foldr (fun e ctx => ctx.erase e.fvarId!) (← getLCtx)
-  let mv' ← Meta.withLCtx ctx (← Meta.getLocalInstances) (Meta.mkFreshExprMVar t)
-  let e := mkAppN mv' state.currAssums
-  set { state with skippedGoals := state.skippedGoals.push mv'.mvarId! }
-  mv.assign e
-
-def addThm (type : Expr) (val : Expr) : ReconstructM Expr := do
-  let name := Name.num `s (← incCount)
-  let mv ← Meta.mkFreshExprMVar type .natural name
-  mv.mvarId!.assign val
-  trace[smt.reconstruct.proof] "have {name} : {type} := {val}"
-  return mv
-
-def addTac (type : Expr) (tac : MVarId → MetaM Unit) : ReconstructM Expr := do
-  let name := Name.num `s (← incCount)
-  let mv ← Meta.mkFreshExprMVar type .natural name
-  tac mv.mvarId!
-  trace[smt.reconstruct.proof] "have {name} : {type} := {mv}"
-  return mv
-
-def addTrust (type : Expr) (pf : cvc5.Proof) : ReconstructM Expr := do
-  let name := Name.num `s (← incCount)
-  let mv ← Meta.mkFreshExprMVar type .natural name
-  skipStep mv.mvarId!
-  trace[smt.reconstruct.proof] m!"have {name} : {type} := sorry"
-  trace[smt.reconstruct.proof]
-    m!"rule : {pf.getRule}\npremises : {pf.getChildren.map (·.getResult)}\nargs : {pf.getArguments}\nconclusion : {pf.getResult}"
-  return mv
-
-def traceReconstructStep (r : Except Exception Expr) : ReconstructM MessageData :=
-  return match r with
-  | .ok _ => m!"{checkEmoji}"
-  | _     => m!"{bombEmoji}"
-
-partial def reconstructProof : cvc5.Proof → ReconstructM Expr := withProofCache fun pf => do
-  let rs ← getReconstructors ``ProofReconstructor ProofReconstructor
+@[export smt_reconstruct_proof]
+partial def reconstructProofImpl : cvc5.Proof → ReconstructM Expr := withProofCache fun pf => do
+  let rs := proofRcons
   go rs pf
 where
   go (rs : List (ProofReconstructor × Name)) (pf : cvc5.Proof) : ReconstructM Expr :=

@@ -5,14 +5,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Tomaz Gomes Mascarenhas
 -/
 
-import Lean
-
 import Smt.Reconstruct.Prop.Core
-import Smt.Reconstruct.Util
 
 namespace Smt.Reconstruct.Prop
 
-open Lean Elab.Tactic Meta Expr Syntax
 open Nat List Classical
 
 theorem ite_eq (c : Prop) [h : Decidable c] (x y : α) : ite c ((ite c x y) = x) ((ite c x y) = y) := by
@@ -396,152 +392,6 @@ theorem not_or_elim (hnps : ¬orN ps) (i : Nat) {hi : i < ps.length} : ¬ps[i] :
   | p₁ :: p₂ :: ps => match i with
     | 0     => (deMorganSmall hnps).left
     | i + 1 => Eq.symm (List.getElem_cons_succ p₁ (p₂ :: ps) i hi) ▸ not_or_elim (deMorganSmall hnps).right i
-
-def andElimMeta (mvar : MVarId) (val : Expr) (i : Nat) (name : Name)
-  : MetaM MVarId :=
-    mvar.withContext do
-      let mut pf ← getProof i val
-      let type ←  inferType val
-      let binderName ← getFirstBinderName type
-      let env ← getEnv
-      let andProp : Expr :=
-        match (env.find? binderName).get!.value? with
-        | none => type
-        | some e => recGetLamBody e
-      if i < getLengthAnd andProp - 1 then
-        pf ← mkAppM ``And.left #[pf]
-      let goal ← inferType pf
-      let (_, mvar') ← MVarId.intro1P $ ← mvar.assert name goal pf
-      return mvar'
-where
-  recGetLamBody (e : Expr) : Expr :=
-    match e with
-    | lam _ _ b _ => recGetLamBody b
-    | e => e
-  getProof (i : Nat) (hyp : Expr) : MetaM Expr :=
-    match i with
-    | 0 => pure hyp
-    | (i + 1) => do
-      let rc ← getProof i hyp
-      mkAppM ``And.right #[rc]
-
-def andElim (mv : MVarId) (val : Expr) (i : Nat) : MetaM Unit :=
-    mv.withContext do
-      let mut pf ← getProof i val
-      let type ←  inferType val
-      let binderName ← getFirstBinderName type
-      let env ← getEnv
-      let andProp : Expr :=
-        match (env.find? binderName).get!.value? with
-        | none => type
-        | some e => recGetLamBody e
-      if i < getLengthAnd andProp - 1 then
-        pf ← mkAppM ``And.left #[pf]
-      mv.assign pf
-where
-  recGetLamBody (e : Expr) : Expr :=
-    match e with
-    | lam _ _ b _ => recGetLamBody b
-    | e => e
-  getProof (i : Nat) (hyp : Expr) : MetaM Expr :=
-    match i with
-    | 0 => pure hyp
-    | (i + 1) => do
-      let rc ← getProof i hyp
-      mkAppM ``And.right #[rc]
-
-namespace Tactic
-
-syntax (name := andElim) "andElim" term "," term : tactic
-@[tactic andElim] def evalAndElim : Tactic := fun stx => do
-  withMainContext do
-    trace[smt.profile.reconstruct] m!"[andElim] start time: {← IO.monoNanosNow}ns"
-    let mvar ← getMainGoal
-    let val ← elabTerm stx[1] none
-    let idx: Term := ⟨stx[3]⟩
-    let i ← stxToNat idx
-    let fname ← mkFreshId
-    let mvar' ← andElimMeta mvar val i fname
-    replaceMainGoal [mvar']
-    evalTactic (← `(tactic| exact $(mkIdent fname)))
-    trace[smt.profile.reconstruct] m!"[andElim] end time: {← IO.monoNanosNow}ns"
-
-end Tactic
-
-def notOrElimMeta (mvar : MVarId) (val : Expr) (i : Nat) (name : Name)
-  : MetaM MVarId :=
-    mvar.withContext do
-      let type ← inferType val
-      let orChain := notExpr type
-      let props ← collectPropsInOrChain orChain
-      let prop := props[i]!
-      withLocalDeclD (← mkFreshId) prop $ fun bv => do
-        let pf: Expr ←
-          match (← getLength orChain) == i + 1 with
-          | true  => pure bv
-          | false =>
-            let rest ← createOrChain (props.drop (i + 1))
-            mkAppOptM ``Or.inl #[none, rest, bv]
-        let pf ← getProof i 0 props pf
-        let pf := mkApp val pf
-        let pf ← mkLambdaFVars #[bv] pf
-        let notProp := mkApp (mkConst ``Not) prop
-        let (_, mvar') ← MVarId.intro1P $ ← mvar.assert name notProp pf
-        return mvar'
-where
-  getProof (i j : Nat) (props : List Expr) (val : Expr) : MetaM Expr :=
-    match i with
-    | 0     => pure val
-    | i + 1 => do
-      let currProp := props[j]!
-      mkAppOptM ``Or.inr #[currProp, none, ← getProof i (j + 1) props val]
-
-def traceNotOrElim (r : Except Exception Unit) : MetaM MessageData :=
-  return match r with
-  | .ok _ => m!"{checkEmoji}"
-  | _     => m!"{bombEmoji}"
-
-def notOrElim (mv : MVarId) (val : Expr) (i : Nat) : MetaM Unit := withTraceNode `smt.reconstruct.notOrElim traceNotOrElim do
-    mv.withContext do
-      let type ← inferType val
-      let orChain := notExpr type
-      let props ← collectPropsInOrChain orChain
-      let prop := props[i]!
-      withLocalDeclD (← mkFreshId) prop $ fun bv => do
-        let pf: Expr ←
-          match (← getLength orChain) == i + 1 with
-          | true  => pure bv
-          | false =>
-            let rest ← createOrChain (props.drop (i + 1))
-            mkAppOptM ``Or.inl #[none, rest, bv]
-        let pf ← getProof i 0 props pf
-        let pf := mkApp val pf
-        let pf ← mkLambdaFVars #[bv] pf
-        mv.assign pf
-where
-  getProof (i j : Nat) (props : List Expr) (val : Expr) : MetaM Expr :=
-    match i with
-    | 0     => pure val
-    | i + 1 => do
-      let currProp := props[j]!
-      mkAppOptM ``Or.inr #[currProp, none, ← getProof i (j + 1) props val]
-
-namespace Tactic
-
-syntax (name := notOrElim) "notOrElim" term "," term : tactic
-@[tactic notOrElim] def evalNotOrElim : Tactic := fun stx => do
-  withMainContext do
-    trace[smt.profile.reconstruct] m!"[notOrElim] start time: {← IO.monoNanosNow}ns"
-    let i ← stxToNat ⟨stx[3]⟩
-    let val ← elabTerm stx[1] none
-    let fname ← mkFreshId
-    let mvar ← getMainGoal
-    let mvar' ← notOrElimMeta mvar val i fname
-    replaceMainGoal [mvar']
-    evalTactic (← `(tactic| exact $(mkIdent fname)))
-    trace[smt.profile.reconstruct] m!"[notOrElim] end time: {← IO.monoNanosNow}ns"
-
-end Tactic
 
 theorem notAnd : ∀ (l : List Prop), ¬ andN l → orN (notN l) := by
   intros l h

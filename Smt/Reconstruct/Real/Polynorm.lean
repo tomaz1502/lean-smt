@@ -7,7 +7,6 @@ Authors: Abdalrhman Mohamed, Harun Khan
 
 import Mathlib.Data.Rat.Cast.CharZero
 import Mathlib.Data.Real.Basic
-import Smt.Recognizers
 
 namespace Smt.Reconstruct.Real.PolyNorm
 
@@ -59,11 +58,11 @@ where
 def divConst (m : Monomial) (c : Rat) : Monomial :=
   { m with coeff := m.coeff / c }
 
-def denote (ctx : Context) (m : Monomial) : Real :=
+def eval (ctx : Context) (m : Monomial) : Real :=
   m.coeff * m.vars.foldl (fun acc v => acc * ctx v) 1
 
-theorem denote_neg {m : Monomial} : m.neg.denote ctx = -m.denote ctx := by
-  simp only [neg, denote, neg_mul_eq_neg_mul, Rat.cast_neg]
+theorem eval_neg {m : Monomial} : m.neg.eval ctx = -m.eval ctx := by
+  simp only [neg, eval, neg_mul_eq_neg_mul, Rat.cast_neg]
 
 section
 
@@ -100,20 +99,20 @@ theorem foldl_mul_insert {ctx : Context} :
                  foldl_assoc mul_assoc, ih]
       rw [←mul_assoc, mul_comm (ctx x) (ctx y), mul_assoc]
 
-theorem denote_add {m n : Monomial} (h : m.vars = n.vars) :
-  (m.add n h).denote ctx = m.denote ctx + n.denote ctx := by
-  simp only [add, denote, add_mul, h, Rat.cast_add]
+theorem eval_add {m n : Monomial} (h : m.vars = n.vars) :
+  (m.add n h).eval ctx = m.eval ctx + n.eval ctx := by
+  simp only [add, eval, add_mul, h, Rat.cast_add]
 
-theorem denote_mul {m₁ m₂ : Monomial} : (m₁.mul m₂).denote ctx = m₁.denote ctx * m₂.denote ctx := by
-  simp only [denote, mul, mul_assoc, Rat.cast_mul]; congr 1
+theorem eval_mul {m₁ m₂ : Monomial} : (m₁.mul m₂).eval ctx = m₁.eval ctx * m₂.eval ctx := by
+  simp only [eval, mul, mul_assoc, Rat.cast_mul]; congr 1
   rw [←mul_assoc, mul_comm _ (m₂.coeff : Real), mul_assoc]; congr 1
   induction m₁.vars with
   | nil => simp [Rat.mul_assoc]
   | cons y ys ih =>
     simp [foldl_mul_insert, ←foldl_assoc mul_assoc, ih]
 
-theorem denote_divConst {m : Monomial} : (m.divConst c).denote ctx = m.denote ctx / c := by
-  simp only [denote, divConst, mul_div_right_comm, Rat.cast_div]
+theorem eval_divConst {m : Monomial} : (m.divConst c).eval ctx = m.eval ctx / c := by
+  simp only [eval, divConst, mul_div_right_comm, Rat.cast_div]
 
 end Monomial
 
@@ -154,12 +153,12 @@ def mul (p q : Polynomial) : Polynomial :=
 def divConst (p : Polynomial) (c : Rat) : Polynomial :=
   p.map (·.divConst c)
 
-def denote (ctx : Context) (p : Polynomial) : Real :=
-  p.foldl (fun acc m => acc + m.denote ctx) 0
+def eval (ctx : Context) (p : Polynomial) : Real :=
+  p.foldl (fun acc m => acc + m.eval ctx) 0
 
 theorem foldl_add_insert (ctx : Context) :
-  List.foldl (fun z a => z + (Monomial.denote ctx a)) 0 (add.insert m p) =
-  (Monomial.denote ctx m) + List.foldl (fun z a => z + (Monomial.denote ctx a)) 0 p := by
+  List.foldl (fun z a => z + (Monomial.eval ctx a)) 0 (add.insert m p) =
+  (Monomial.eval ctx m) + List.foldl (fun z a => z + (Monomial.eval ctx a)) 0 p := by
   induction p with
   | nil => simp [add.insert]
   | cons n p ih =>
@@ -167,83 +166,83 @@ theorem foldl_add_insert (ctx : Context) :
     split <;> rename_i hlt <;> simp only [List.foldl_cons, add_comm 0, Monomial.foldl_assoc add_assoc, zero_add]
     · split <;> rename_i heq
       · split <;> rename_i hneq
-        · rw [←add_zero (Monomial.denote ctx n), Monomial.foldl_assoc add_assoc, ←add_assoc, ←Monomial.denote_add heq]
-          simp [Monomial.denote, hneq, add_zero]
-        · simp [add_comm 0, Monomial.foldl_assoc add_assoc, Monomial.denote_add, heq, add_assoc]
-      · rw [←zero_add (Monomial.denote ctx n), List.foldl_cons, add_comm 0, Monomial.foldl_assoc add_assoc, Monomial.foldl_assoc add_assoc, ih]
-        rw [←add_assoc, add_comm (Monomial.denote ctx n), add_assoc]
+        · rw [←add_zero (Monomial.eval ctx n), Monomial.foldl_assoc add_assoc, ←add_assoc, ←Monomial.eval_add heq]
+          simp [Monomial.eval, hneq, add_zero]
+        · simp [add_comm 0, Monomial.foldl_assoc add_assoc, Monomial.eval_add, heq, add_assoc]
+      · rw [←zero_add (Monomial.eval ctx n), List.foldl_cons, add_comm 0, Monomial.foldl_assoc add_assoc, Monomial.foldl_assoc add_assoc, ih]
+        rw [←add_assoc, add_comm (Monomial.eval ctx n), add_assoc]
 
-theorem denote_neg {p : Polynomial} : p.neg.denote ctx = -p.denote ctx := by
-  simp only [denote, neg]
+theorem eval_neg {p : Polynomial} : p.neg.eval ctx = -p.eval ctx := by
+  simp only [eval, neg]
   induction p with
   | nil => simp
   | cons m p ih =>
     rw [List.foldl_cons, add_comm 0, Monomial.foldl_assoc add_assoc, neg_add, ←ih, List.map]
-    rw [List.foldl_cons, add_comm 0, Monomial.foldl_assoc add_assoc, Monomial.denote_neg]
+    rw [List.foldl_cons, add_comm 0, Monomial.foldl_assoc add_assoc, Monomial.eval_neg]
 
-theorem denote_add {p q : Polynomial} : (p.add q).denote ctx = p.denote ctx + q.denote ctx := by
-  simp only [denote, add]
+theorem eval_add {p q : Polynomial} : (p.add q).eval ctx = p.eval ctx + q.eval ctx := by
+  simp only [eval, add]
   induction p with
   | nil => simp [add.insert]
   | cons x ys ih =>
     rw [List.foldr_cons, List.foldl_cons, add_comm 0, Monomial.foldl_assoc add_assoc, add_assoc]
     rw [← ih, foldl_add_insert]
 
-theorem denote_sub {p q : Polynomial} : (p.sub q).denote ctx = p.denote ctx - q.denote ctx := by
-  simp only [sub, denote_neg, denote_add, sub_eq_add_neg]
+theorem eval_sub {p q : Polynomial} : (p.sub q).eval ctx = p.eval ctx - q.eval ctx := by
+  simp only [sub, eval_neg, eval_add, sub_eq_add_neg]
 
-theorem denote_mulMonomial {p : Polynomial} : (p.mulMonomial m).denote ctx = m.denote ctx * p.denote ctx := by
-  simp only [denote, mulMonomial, add]
+theorem eval_mulMonomial {p : Polynomial} : (p.mulMonomial m).eval ctx = m.eval ctx * p.eval ctx := by
+  simp only [eval, mulMonomial, add]
   induction p with
   | nil => simp
   | cons n p ih =>
     rw [List.foldl_cons, List.foldr_cons, add_comm 0, Monomial.foldl_assoc add_assoc, mul_add, ←ih]
-    simp [foldl_add_insert, Monomial.denote_mul]
+    simp [foldl_add_insert, Monomial.eval_mul]
 
-theorem denote_cons {p : List Monomial} {ctx : Context} : denote ctx (m :: p) = m.denote ctx + denote ctx p := by
-  rw [denote, List.foldl_cons, add_comm 0, Monomial.foldl_assoc add_assoc]
-  simp [denote, Monomial.foldl_assoc add_assoc]
+theorem eval_cons {p : List Monomial} {ctx : Context} : eval ctx (m :: p) = m.eval ctx + eval ctx p := by
+  rw [eval, List.foldl_cons, add_comm 0, Monomial.foldl_assoc add_assoc]
+  simp [eval, Monomial.foldl_assoc add_assoc]
 
-theorem denote_nil_add : denote ctx (p.add []) = denote ctx p := by
+theorem eval_nil_add : eval ctx (p.add []) = eval ctx p := by
   induction p with
   | nil => simp [add]
   | cons n p ih =>
-    simp [denote_add, List.foldr_cons, denote_cons, ih, show denote ctx [] = 0 by rfl, add_zero]
+    simp [eval_add, List.foldr_cons, eval_cons, ih, show eval ctx [] = 0 by rfl, add_zero]
 
-theorem denote_add_insert {g : Monomial → Polynomial} :
-  denote ctx (List.foldl (fun acc m => (g m).add acc) n p) = denote ctx n + denote ctx (List.foldl (fun acc m => (g m).add acc) [] p) := by
+theorem eval_add_insert {g : Monomial → Polynomial} :
+  eval ctx (List.foldl (fun acc m => (g m).add acc) n p) = eval ctx n + eval ctx (List.foldl (fun acc m => (g m).add acc) [] p) := by
   revert n
   induction p with
-  | nil => simp [denote, add_zero]
+  | nil => simp [eval, add_zero]
   | cons k p ih =>
     intro n
     simp only [List.foldl_cons, List.foldr, @ih n]
-    rw [ih, @ih ((g k).add []), ← add_assoc, denote_nil_add, denote_add, add_comm _ (denote ctx n)]
+    rw [ih, @ih ((g k).add []), ← add_assoc, eval_nil_add, eval_add, add_comm _ (eval ctx n)]
 
-theorem denote_foldl {g : Monomial → Polynomial} :
-  denote ctx (List.foldl (fun acc m => ((g m).add (acc))) [] p) = List.foldl (fun acc m => (g m).denote ctx + acc) 0 p := by
+theorem eval_foldl {g : Monomial → Polynomial} :
+  eval ctx (List.foldl (fun acc m => ((g m).add (acc))) [] p) = List.foldl (fun acc m => (g m).eval ctx + acc) 0 p := by
   induction p with
-  | nil => simp [denote]
+  | nil => simp [eval]
   | cons n p ih =>
     simp only [List.foldl_cons, add_comm, List.foldr] at *
-    rw [add_comm 0, Monomial.foldl_assoc add_assoc, ←ih, denote_add_insert, denote_nil_add]
+    rw [add_comm 0, Monomial.foldl_assoc add_assoc, ←ih, eval_add_insert, eval_nil_add]
 
-theorem denote_mul {p q : Polynomial} : (p.mul q).denote ctx = p.denote ctx * q.denote ctx :=by
+theorem eval_mul {p q : Polynomial} : (p.mul q).eval ctx = p.eval ctx * q.eval ctx :=by
   simp only [mul]
   induction p with
-  | nil => simp [denote]
+  | nil => simp [eval]
   | cons n p ih =>
-    simp only [List.foldl_cons, denote_cons, add_mul, ← ih]
-    rw [denote_foldl, denote_add_insert, ←denote_mulMonomial, denote_nil_add, denote_foldl]
+    simp only [List.foldl_cons, eval_cons, add_mul, ← ih]
+    rw [eval_foldl, eval_add_insert, ←eval_mulMonomial, eval_nil_add, eval_foldl]
 
-theorem denote_divConst {p : Polynomial} : (p.divConst c).denote ctx = p.denote ctx / c := by
-  simp only [denote, divConst]
+theorem eval_divConst {p : Polynomial} : (p.divConst c).eval ctx = p.eval ctx / c := by
+  simp only [eval, divConst]
   induction p with
   | nil => simp [zero_div]
   | cons x ys ih =>
     rw [List.map_cons, List.foldl_cons, add_comm 0, Monomial.foldl_assoc add_assoc]
     rw [List.foldl_cons, add_comm 0, Monomial.foldl_assoc add_assoc]
-    rw [Monomial.denote_divConst, ih, add_div]
+    rw [Monomial.eval_divConst, ih, add_div]
 
 end Polynomial
 
@@ -258,39 +257,39 @@ deriving Inhabited, Repr
 
 namespace IntExpr
 
-def toPolynomial : IntExpr → Polynomial
+def toPoly : IntExpr → Polynomial
   | .val v => if v = 0 then [] else [{ coeff := v, vars := [] }]
   | .var v => [{ coeff := 1, vars := [⟨false, v⟩] }]
-  | .neg a => a.toPolynomial.neg
-  | .add a b => Polynomial.add a.toPolynomial b.toPolynomial
-  | .sub a b => Polynomial.sub a.toPolynomial b.toPolynomial
-  | .mul a b => Polynomial.mul a.toPolynomial b.toPolynomial
+  | .neg a => a.toPoly.neg
+  | .add a b => Polynomial.add a.toPoly b.toPoly
+  | .sub a b => Polynomial.sub a.toPoly b.toPoly
+  | .mul a b => Polynomial.mul a.toPoly b.toPoly
 
-def denote (ctx : IntContext) : IntExpr → Int
+def eval (ctx : IntContext) : IntExpr → Int
   | .val v => v
   | .var v => ctx v
-  | .neg a => -a.denote ctx
-  | .add a b => a.denote ctx + b.denote ctx
-  | .sub a b => a.denote ctx - b.denote ctx
-  | .mul a b => a.denote ctx * b.denote ctx
+  | .neg a => -a.eval ctx
+  | .add a b => a.eval ctx + b.eval ctx
+  | .sub a b => a.eval ctx - b.eval ctx
+  | .mul a b => a.eval ctx * b.eval ctx
 
-theorem denote_toPolynomial {rctx : RealContext} {e : IntExpr} : e.denote ictx = e.toPolynomial.denote (fun ⟨b, n⟩ => if b then rctx n else ictx n) := by
+theorem eval_toPoly {rctx : RealContext} {e : IntExpr} : e.eval ictx = e.toPoly.eval (fun ⟨b, n⟩ => if b then rctx n else ictx n) := by
   induction e with
   | val v =>
-    simp only [denote, toPolynomial]
+    simp only [eval, toPoly]
     split <;> rename_i hv
     · rewrite [hv, Int.cast_zero]; rfl
-    · simp [Polynomial.denote, Monomial.denote]
+    · simp [Polynomial.eval, Monomial.eval]
   | var v =>
-    simp [denote, toPolynomial, Polynomial.denote, Monomial.denote]
+    simp [eval, toPoly, Polynomial.eval, Monomial.eval]
   | neg a ih =>
-    simp only [denote, toPolynomial, Polynomial.denote_neg, Int.cast_neg, ih]
+    simp only [eval, toPoly, Polynomial.eval_neg, Int.cast_neg, ih]
   | add a b ih₁ ih₂ =>
-    simp only [denote, toPolynomial, Polynomial.denote_add, Int.cast_add, ih₁, ih₂]
+    simp only [eval, toPoly, Polynomial.eval_add, Int.cast_add, ih₁, ih₂]
   | sub a b ih₁ ih₂ =>
-    simp only [denote, toPolynomial, Polynomial.denote_sub, Int.cast_sub, ih₁, ih₂]
+    simp only [eval, toPoly, Polynomial.eval_sub, Int.cast_sub, ih₁, ih₂]
   | mul a b ih₁ ih₂ =>
-    simp only [denote, toPolynomial, Polynomial.denote_mul, Int.cast_mul, ih₁, ih₂]
+    simp only [eval, toPoly, Polynomial.eval_mul, Int.cast_mul, ih₁, ih₂]
 
 end IntExpr
 
@@ -305,41 +304,41 @@ deriving Inhabited, Repr
 
 namespace RealValExpr
 
-def eval : RealValExpr → Rat
+def evalRat : RealValExpr → Rat
   | .val v => v
-  | .neg a => -a.eval
-  | .add a b => a.eval + b.eval
-  | .sub a b => a.eval - b.eval
-  | .mul a b => a.eval * b.eval
-  | .div a c => a.eval / c.eval
+  | .neg a => -a.evalRat
+  | .add a b => a.evalRat + b.evalRat
+  | .sub a b => a.evalRat - b.evalRat
+  | .mul a b => a.evalRat * b.evalRat
+  | .div a c => a.evalRat / c.evalRat
 
-noncomputable def denote : RealValExpr → Real
+noncomputable def evalReal : RealValExpr → Real
   | .val v => if v = 0 then 0 else if v = 1 then 1 else v
-  | .neg a => -a.denote
-  | .add a b => a.denote + b.denote
-  | .sub a b => a.denote - b.denote
-  | .mul a b => a.denote * b.denote
-  | .div a c => a.denote / c.denote
+  | .neg a => -a.evalReal
+  | .add a b => a.evalReal + b.evalReal
+  | .sub a b => a.evalReal - b.evalReal
+  | .mul a b => a.evalReal * b.evalReal
+  | .div a c => a.evalReal / c.evalReal
 
-theorem eval_eq_denote {e : RealValExpr} : e.eval = e.denote := by
+theorem evalRat_eq_evalReal {e : RealValExpr} : e.evalRat = e.evalReal := by
   induction e with
   | val v =>
-    simp only [eval, denote]
+    simp only [evalRat, evalReal]
     split <;> rename_i hv
     · simp only [Rat.cast_zero, hv]
     · split <;> rename_i hv
       · simp only [Rat.cast_one, hv]
       · simp only [hv]
   | neg a ih =>
-    simp only [eval, denote, Rat.cast_neg, ih]
+    simp only [evalRat, evalReal, Rat.cast_neg, ih]
   | add a b ih₁ ih₂ =>
-    simp only [eval, denote, Rat.cast_add, ih₁, ih₂]
+    simp only [evalRat, evalReal, Rat.cast_add, ih₁, ih₂]
   | sub a b ih₁ ih₂ =>
-    simp only [eval, denote, Rat.cast_sub, ih₁, ih₂]
+    simp only [evalRat, evalReal, Rat.cast_sub, ih₁, ih₂]
   | mul a b ih₁ ih₂ =>
-    simp only [eval, denote, Rat.cast_mul, ih₁, ih₂]
+    simp only [evalRat, evalReal, Rat.cast_mul, ih₁, ih₂]
   | div a c ih₁ ih₂ =>
-    simp only [eval, denote, Rat.cast_div, ih₁, ih₂]
+    simp only [evalRat, evalReal, Rat.cast_div, ih₁, ih₂]
 
 end RealValExpr
 
@@ -356,209 +355,51 @@ deriving Inhabited, Repr
 
 namespace RealExpr
 
-def toPolynomial : RealExpr → Polynomial
+def toPoly : RealExpr → Polynomial
   | .val v => if v = 0 then [] else [{ coeff := v, vars := [] }]
   | .var v => [{ coeff := 1, vars := [⟨true, v⟩] }]
-  | .neg a => a.toPolynomial.neg
-  | .add a b => Polynomial.add a.toPolynomial b.toPolynomial
-  | .sub a b => Polynomial.sub a.toPolynomial b.toPolynomial
-  | .mul a b => Polynomial.mul a.toPolynomial b.toPolynomial
-  | .divConst a c => Polynomial.divConst a.toPolynomial c.eval
-  | .cast a => a.toPolynomial
+  | .neg a => a.toPoly.neg
+  | .add a b => Polynomial.add a.toPoly b.toPoly
+  | .sub a b => Polynomial.sub a.toPoly b.toPoly
+  | .mul a b => Polynomial.mul a.toPoly b.toPoly
+  | .divConst a c => Polynomial.divConst a.toPoly c.evalRat
+  | .cast a => a.toPoly
 
-noncomputable def denote (ictx : IntContext) (rctx : RealContext) : RealExpr → Real
+noncomputable def eval (ictx : IntContext) (rctx : RealContext) : RealExpr → Real
   | .val v => if v = 0 then 0 else if v = 1 then 1 else v
   | .var v => rctx v
-  | .neg a => -a.denote ictx rctx
-  | .add a b => a.denote ictx rctx + b.denote ictx rctx
-  | .sub a b => a.denote ictx rctx - b.denote ictx rctx
-  | .mul a b => a.denote ictx rctx * b.denote ictx rctx
-  | .divConst a c => a.denote ictx rctx / c.denote
-  | .cast a => a.denote ictx
+  | .neg a => -a.eval ictx rctx
+  | .add a b => a.eval ictx rctx + b.eval ictx rctx
+  | .sub a b => a.eval ictx rctx - b.eval ictx rctx
+  | .mul a b => a.eval ictx rctx * b.eval ictx rctx
+  | .divConst a c => a.eval ictx rctx / c.evalReal
+  | .cast a => a.eval ictx
 
-theorem denote_toPolynomial {e : RealExpr} : e.denote ictx rctx = e.toPolynomial.denote (fun ⟨b, n⟩ => if b then rctx n else ictx n) := by
+theorem eval_toPoly {e : RealExpr} : e.eval ictx rctx = e.toPoly.eval (fun ⟨b, n⟩ => if b then rctx n else ictx n) := by
   induction e with
   | val v =>
-    simp only [denote, toPolynomial, Polynomial.denote, Monomial.denote]
+    simp only [eval, toPoly, Polynomial.eval, Monomial.eval]
     split <;> rename_i hv
     · simp [Rat.cast_zero, hv]
     · split <;> rename_i hv
       · simp [Rat.cast_one, hv]
       · simp [hv]
   | var v =>
-    simp [denote, toPolynomial, Polynomial.denote, Monomial.denote]
+    simp [eval, toPoly, Polynomial.eval, Monomial.eval]
   | neg a ih =>
-    simp only [denote, toPolynomial, Polynomial.denote_neg, ih]
+    simp only [eval, toPoly, Polynomial.eval_neg, ih]
   | add a b ih₁ ih₂ =>
-    simp only [denote, toPolynomial, Polynomial.denote_add, ih₁, ih₂]
+    simp only [eval, toPoly, Polynomial.eval_add, ih₁, ih₂]
   | sub a b ih₁ ih₂ =>
-    simp only [denote, toPolynomial, Polynomial.denote_sub, ih₁, ih₂]
+    simp only [eval, toPoly, Polynomial.eval_sub, ih₁, ih₂]
   | mul a b ih₁ ih₂ =>
-    simp only [denote, toPolynomial, Polynomial.denote_mul, ih₁, ih₂]
+    simp only [eval, toPoly, Polynomial.eval_mul, ih₁, ih₂]
   | divConst a c ih =>
-    simp only [denote, toPolynomial, Polynomial.denote_divConst, RealValExpr.eval_eq_denote, ih]
+    simp only [eval, toPoly, Polynomial.eval_divConst, RealValExpr.evalRat_eq_evalReal, ih]
   | cast a =>
-    simpa only [denote] using IntExpr.denote_toPolynomial
+    simpa only [eval] using IntExpr.eval_toPoly
 
-theorem denote_eq_from_toPolynomial_eq {e₁ e₂ : RealExpr} (h : e₁.toPolynomial = e₂.toPolynomial) : e₁.denote ictx rctx = e₂.denote ictx rctx := by
-  rw [denote_toPolynomial, denote_toPolynomial, h]
+theorem eval_eq_from_toPoly_eq {e₁ e₂ : RealExpr} (h : e₁.toPoly = e₂.toPoly) : e₁.eval ictx rctx = e₂.eval ictx rctx := by
+  rw [eval_toPoly, eval_toPoly, h]
 
-end PolyNorm.RealExpr
-
-open Lean Qq
-
-abbrev PolyM := StateT (Array Q(Int) × Array Q(Real)) MetaM
-
-def getIntIndex (e : Q(Int)) : PolyM Nat := do
-  let ⟨is, rs⟩ ← get
-  if let some i := is.findIdx? (· == e) then
-    return i
-  else
-    let size := is.size
-    set (is.push e, rs)
-    return size
-
-def getRealIndex (e : Q(Real)) : PolyM Nat := do
-  let ⟨is, rs⟩ ← get
-  if let some i := rs.findIdx? (· == e) then
-    return i
-  else
-    let size := rs.size
-    set (is, rs.push e)
-    return size
-
-partial def reifyRealVal (e : Q(Real)) : PolyM Q(PolyNorm.RealValExpr) := do
-  if let some n := e.natLitOf? q(Real) then
-    return q(.val (OfNat.ofNat $n))
-  else if let some e := e.negOf? q(Real) then
-    return q(.neg $(← reifyRealVal e))
-  else if let some (x, y) := e.hAddOf? q(Real) q(Real) then
-    return q(.add $(← reifyRealVal x) $(← reifyRealVal y))
-  else if let some (x, y) := e.hSubOf? q(Real) q(Real) then
-    return q(.sub $(← reifyRealVal x) $(← reifyRealVal y))
-  else if let some (x, y) := e.hMulOf? q(Real) q(Real) then
-    return q(.mul $(← reifyRealVal x) $(← reifyRealVal y))
-  else if let some (x, y) := e.hDivOf? q(Real) q(Real) then
-    return q(.div $(← reifyRealVal x) $(← reifyRealVal y))
-  else
-    throwError "[poly_norm] expected a rational number, got {e}"
-
-partial def reifyInt (e : Q(Int)) : PolyM Q(PolyNorm.IntExpr) := do
-  if let some e := e.natLitOf? q(Int) then
-    return q(.val (OfNat.ofNat $e))
-  else if let some e := e.negOf? q(Int) then
-    return q(.neg $(← reifyInt e))
-  else if let some (x, y) := e.hAddOf? q(Int) q(Int) then
-    return q(.add $(← reifyInt x) $(← reifyInt y))
-  else if let some (x, y) := e.hSubOf? q(Int) q(Int) then
-    return q(.sub $(← reifyInt x) $(← reifyInt y))
-  else if let some (x, y) := e.hMulOf? q(Int) q(Int) then
-    return q(.mul $(← reifyInt x) $(← reifyInt y))
-  else
-    let v : Nat ← getIntIndex e
-    return q(.var $v)
-
-partial def reifyReal (e : Q(Real)) : PolyM Q(PolyNorm.RealExpr) := do
-  if let some e := e.natLitOf? q(Real) then
-    return q(.val (OfNat.ofNat $e))
-  else if let some e := e.negOf? q(Real) then
-    return q(.neg $(← reifyReal e))
-  else if let some (x, y) := e.hAddOf? q(Real) q(Real) then
-    return q(.add $(← reifyReal x) $(← reifyReal y))
-  else if let some (x, y) := e.hSubOf? q(Real) q(Real) then
-    return q(.sub $(← reifyReal x) $(← reifyReal y))
-  else if let some (x, y) := e.hMulOf? q(Real) q(Real) then
-    return q(.mul $(← reifyReal x) $(← reifyReal y))
-  else if let some (x, y) := e.hDivOf? q(Real) q(Real) then
-    return q(.divConst $(← reifyReal x) $(← reifyRealVal y))
-  else if let some e := e.intCastOf? q(Real) then
-    return q(.cast $(← reifyInt e))
-  else
-    let v : Nat ← getRealIndex e
-    return q(.var $v)
-
-def polyNorm (mv : MVarId) : MetaM Unit := do
-  let some (_, l, r) := (← mv.getType).eq?
-    | throwError "[poly_norm] expected an equality, got {← mv.getType}"
-  let (l, (is, rs)) ← (reifyReal l).run (#[], #[])
-  let (r, (is, rs)) ← (reifyReal r).run (is, rs)
-  let ictx : Q(PolyNorm.IntContext) ← if h : 0 < is.size
-    then do let is : Q(RArray Int) ← (RArray.ofArray is h).toExpr q(Int) id; pure q(«$is».get)
-    else pure q(fun _ => 0)
-  let rctx : Q(PolyNorm.RealContext) ← if h : 0 < rs.size
-    then do let rs : Q(RArray Real) ← (RArray.ofArray rs h).toExpr q(Real) id; pure q(«$rs».get)
-    else pure q(fun _ => 0)
-  let h : Q(«$l».toPolynomial = «$r».toPolynomial) := .app q(@Eq.refl.{1} PolyNorm.Polynomial) q(«$l».toPolynomial)
-  mv.assign q(@PolyNorm.RealExpr.denote_eq_from_toPolynomial_eq $ictx $rctx $l $r $h)
-
-def nativePolyNorm (mv : MVarId) : MetaM Unit := do
-  let some (_, l, r) := (← mv.getType).eq?
-    | throwError "[poly_norm] expected an equality, got {← mv.getType}"
-  let (l, (is, rs)) ← (reifyReal l).run (#[], #[])
-  let (r, (is, rs)) ← (reifyReal r).run (is, rs)
-  let ictx : Q(PolyNorm.IntContext) ← if h : 0 < is.size
-    then do let is : Q(RArray Int) ← (RArray.ofArray is h).toExpr q(Int) id; pure q(«$is».get)
-    else pure q(fun _ => 0)
-  let rctx : Q(PolyNorm.RealContext) ← if h : 0 < rs.size
-    then do let rs : Q(RArray Real) ← (RArray.ofArray rs h).toExpr q(Real) id; pure q(«$rs».get)
-    else pure q(fun _ => 0)
-  let h ← nativeDecide q(«$l».toPolynomial = «$r».toPolynomial)
-  mv.assign q(@PolyNorm.RealExpr.denote_eq_from_toPolynomial_eq $ictx $rctx $l $r $h)
-where
-  nativeDecide (p : Q(Prop)) : MetaM Q($p) := do
-    let hp : Q(Decidable $p) ← Meta.synthInstance q(Decidable $p)
-    let auxDeclName ← mkNativeAuxDecl `_nativePolynorm q(Bool) q(decide $p)
-    let b : Q(Bool) := .const auxDeclName []
-    return .app q(@of_decide_eq_true $p $hp) (.app q(Lean.ofReduceBool $b true) q(Eq.refl true))
-  mkNativeAuxDecl (baseName : Name) (type value : Expr) : MetaM Name := do
-    let auxName ← match (← getEnv).asyncPrefix? with
-      | none          => Lean.mkAuxName baseName 1
-      | some declName => Lean.mkAuxName (declName ++ baseName) 1
-    let decl := Declaration.defnDecl {
-      name := auxName, levelParams := [], type, value
-      hints := .abbrev
-      safety := .safe
-    }
-    addAndCompile decl
-    pure auxName
-
-def traceArithNormNum (r : Except Exception Unit) : MetaM MessageData :=
-  return match r with
-  | .ok _ => m!"{checkEmoji}"
-  | _     => m!"{bombEmoji}"
-
-open Mathlib.Meta.NormNum in
-def normNum (mv : MVarId) : MetaM Unit := withTraceNode `smt.reconstruct.normNum traceArithNormNum do
-  if let some (_, mv) ← normNumAt mv (← Meta.Simp.mkContext) #[] true false then
-    throwError "[norm_num]: could not prove {← mv.getType}"
-
-namespace Tactic
-
-syntax (name := polyNorm) "poly_norm" : tactic
-
-open Lean.Elab Tactic in
-@[tactic polyNorm] def evalPolyNorm : Tactic := fun _ =>
-  withMainContext do
-    let mv ← Tactic.getMainGoal
-    Real.polyNorm mv
-    replaceMainGoal []
-
-syntax (name := nativePolyNorm) "native_poly_norm" : tactic
-
-open Lean.Elab Tactic in
-@[tactic nativePolyNorm] def evalNativePolyNorm : Tactic := fun _ =>
-  withMainContext do
-    let mv ← Tactic.getMainGoal
-    Real.nativePolyNorm mv
-    replaceMainGoal []
-
-end Smt.Reconstruct.Real.Tactic
-
-example (x y z : Real) : 1 * (x + y) * z / 4 = 1 / (2 * 2) * (z * y + x * z) := by
-  poly_norm
-
-example (x y : Int) (z : Real) : 1 * (↑x + ↑y) * z / 4 = 1 / (2 * 2) * (z * ↑y + ↑x * z) := by
-  poly_norm
-
-example (x y : Int) (z : Real) : 1 * ↑(x + y) * z / 4 = 1 / (2 * 2) * (z * ↑y + ↑x * z) := by
-  native_poly_norm
+end Smt.Reconstruct.Real.PolyNorm.RealExpr

@@ -9,6 +9,7 @@ import Lean
 
 import Smt.Dsl.Sexp
 import Smt.Reconstruct
+import Smt.Reconstruct.Util
 import Smt.Reconstruct.Prop.Lemmas
 import Smt.Translate.Query
 import Smt.Preprocess

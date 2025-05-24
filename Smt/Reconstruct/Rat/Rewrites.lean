@@ -5,7 +5,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Abdalrhman Mohamed, Harun Khan
 -/
 
-import Batteries.Data.Rat
 import Smt.Reconstruct.Rat.Lemmas
 
 namespace Smt.Reconstruct.Rat.Rewrite
@@ -52,7 +51,16 @@ theorem eq_conflict {t : Int} {c : Rat} (hcc : (↑c.floor = c) = False) : (t = 
       simp_all [Rat.lt_irrefl]
 
 theorem geq_tighten {t : Int} {c : Rat} {cc : Int} (hc : (↑c.floor = c) = False) (hcc : cc = Int.addN [c.floor, 1]) : (t ≥ c) = (t ≥ cc) := by
-  have Int.floor_lt {z : Int} {a : Rat} : a.floor < z ↔ a < ↑z := sorry
+  have Int.floor_lt {z : Int} {a : Rat} : a.floor < z ↔ a < ↑z := by
+    have ha := Rat.floor_le_self a
+    apply Iff.intro
+    · intro hz
+      have ha' := Rat.self_le_floor_add_one a
+      apply Rat.lt_of_lt_of_le ha'
+      exact Rat.cast_le2 hz
+    · intro hz
+      have hlt := Rat.lt_of_le_of_lt ha hz
+      exact Rat.cast_lt1 hlt
   simp only [hcc, Int.addN, ge_iff_le, eq_iff_iff, Rat.le_iff_eq_or_lt, ← Int.floor_lt]
   have h : ↑t ≠ c := by simpa [Eq.symm] using eq_conflict hc
   apply Iff.intro <;> intro hct
@@ -63,10 +71,57 @@ theorem geq_tighten {t : Int} {c : Rat} {cc : Int} (hc : (↑c.floor = c) = Fals
 -- Absolute value comparisons
 
 theorem abs_eq : (x.abs = y.abs) = (x = y ∨ x = -y) := by
-  cases hx : decide (x < 0) <;> cases hy : decide (y < 0) <;> simp_all [Rat.abs] <;> sorry
+  cases hx : decide (x < 0) <;> cases hy : decide (y < 0) <;> simp_all [Rat.abs]
+  <;> try simp [Rat.not_lt] at hx hy <;> try intro H <;> try rw [H] at hx
+  · have hx':= Rat.neg_le_neg hx
+    simp at hx'
+    have : y = 0 := by
+      apply Rat.le_antisymm hx' hy
+    simp [this]
+  · exfalso; exact (Rat.lt_irrefl y) (Rat.lt_of_lt_of_le hy hx)
+  · constructor <;> try (intro H; try rw [H] at hx)
+    · apply Or.inr
+      rw [← Rat.neg_neg y] at H
+      exact Rat.neg_eq H
+    · cases H with
+      | inl H => rw [H] at hx; exfalso
+                 exact (Rat.lt_irrefl 0) (Rat.lt_of_le_of_lt hy hx)
+      | inr H => rw [← Rat.neg_neg x] at H
+                 exact Rat.neg_eq H
+  · constructor
+    · intro H; apply Or.inl; exact Rat.neg_eq H
+    · intro H; cases H with
+      | inl H => exact congrArg Neg.neg H
+      | inr H => rw [H] at hx; exfalso
+                 have hy' := Rat.pos_of_neg hy
+                 exact (Rat.lt_irrefl 0) (Rat.lt_trans hy' hx)
 
 theorem abs_gt : (x.abs > y.abs) = ite (x ≥ 0) (ite (y ≥ 0) (x > y) (x > -y)) (ite (y ≥ 0) (-x > y) (-x > -y)) := by
-  simp only [Rat.abs, gt_iff_lt, ge_iff_le, eq_iff_iff] <;> split <;> split <;> split <;> split <;> sorry
+  (simp only [Rat.abs, gt_iff_lt, ge_iff_le, eq_iff_iff]; split) <;> split <;> split <;> split <;> try simp [Rat.not_lt, Rat.not_le] at *
+  case isTrue.isTrue.isTrue.isTrue h1 h2 h3 h4 =>
+    exfalso; exact (Rat.lt_irrefl 0) (Rat.lt_of_le_of_lt h4 h1)
+  case isTrue.isTrue.isTrue.isFalse h1 h2 h3 h4 =>
+    exfalso; exact (Rat.lt_irrefl x) (Rat.lt_of_lt_of_le h2 h3)
+  case isTrue.isTrue.isFalse.isTrue h1 h2 h3 h4 =>
+    exfalso; exact (Rat.lt_irrefl y) (Rat.lt_of_lt_of_le h1 h3)
+  case isTrue.isFalse.isTrue.isTrue h1 h2 h3 h4 =>
+    exfalso; exact (Rat.lt_irrefl 0) (Rat.lt_of_le_of_lt h3 h1)
+  case isTrue.isFalse.isFalse.isTrue h1 h2 h3 h4 =>
+    exfalso; exact (Rat.lt_irrefl 0) (Rat.lt_of_le_of_lt h3 h4)
+  case isTrue.isFalse.isFalse.isFalse h1 h2 h3 h4 =>
+    exfalso; exact (Rat.lt_irrefl x) (Rat.lt_of_lt_of_le h3 h2)
+  case isFalse.isTrue.isTrue.isTrue h1 h2 h3 h4 =>
+    exfalso; exact (Rat.lt_irrefl x) (Rat.lt_of_lt_of_le h1 h2)
+  case isFalse.isTrue.isTrue.isFalse h1 h2 h3 h4 =>
+    exfalso; exact (Rat.lt_irrefl 0) (Rat.lt_of_le_of_lt h2 h1)
+  case isFalse.isTrue.isFalse.isFalse h1 h2 h3 h4 =>
+    exfalso; exact (Rat.lt_irrefl 0) (Rat.lt_of_le_of_lt h2 h4)
+  case isFalse.isFalse.isTrue.isFalse h1 h2 h3 h4 =>
+    exfalso; exact (Rat.lt_irrefl 0) (Rat.lt_of_le_of_lt h2 h4)
+  case isFalse.isFalse.isFalse.isTrue h1 h2 h3 h4 =>
+    exfalso; exact (Rat.lt_irrefl 0) (Rat.lt_of_le_of_lt h3 h4)
+  case isFalse.isFalse.isFalse.isFalse h1 h2 h3 h4 =>
+    exfalso; exact (Rat.lt_irrefl 0) (Rat.lt_of_le_of_lt h2 h3)
 
 -- ITE lifting
 

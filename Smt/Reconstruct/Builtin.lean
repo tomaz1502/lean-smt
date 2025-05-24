@@ -5,17 +5,18 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Abdalrhman Mohamed
 -/
 
-import Smt.Reconstruct
+import Qq
 import Smt.Reconstruct.Builtin.AC
 import Smt.Reconstruct.Builtin.Lemmas
 import Smt.Reconstruct.Builtin.Rewrites
 import Smt.Reconstruct.Builtin.Tactic
+import Smt.Reconstruct.State
 
 namespace Smt.Reconstruct.Builtin
 
 open Lean Qq
 
-@[smt_sort_reconstruct] def reconstructBuiltinSort : SortReconstructor := fun s => do match s.getKind with
+def reconstructBuiltinSort : SortReconstructor := fun s => do match s.getKind with
   | .FUNCTION_SORT =>
     let ct ← reconstructSort s.getFunctionCodomainSort!
     let f := fun s a => do
@@ -48,7 +49,7 @@ where
   | [x, y] => q($x ≠ $y)
   | x :: ys => ys.foldr (fun y ys => q($x ≠ $y ∧ $ys)) (go ys)
 
-@[smt_term_reconstruct] def reconstructBuiltin : TermReconstructor := fun t => do match t.getKind with
+def reconstructBuiltin : TermReconstructor := fun t => do match t.getKind with
   | .VARIABLE => getFVarExpr! (getVariableName t)
   | .CONSTANT => getFVarOrConstExpr! t.getSymbol!
   | .EQUAL =>
@@ -144,7 +145,7 @@ def reconstructRewrite (pf : cvc5.Proof) : ReconstructM (Option Expr) := do
     addThm q(ite $c $x (ite (¬$c) $y $z) = ite $c $x $y) q(@Builtin.ite_else_neg_lookahead $c $α $x $y $z $h)
   | _ => return none
 
-@[smt_proof_reconstruct] def reconstructBuiltinProof : ProofReconstructor := fun pf => do match pf.getRule with
+def reconstructBuiltinProof : ProofReconstructor := fun pf => do match pf.getRule with
   | .ASSUME =>
     let p : Q(Prop) ← reconstructTerm pf.getArguments[0]!
     match (← findAssumWithType? p) with
@@ -178,7 +179,8 @@ def reconstructRewrite (pf : cvc5.Proof) : ReconstructM (Option Expr) := do
       else
         addThm q($t = $t') (← decide q($t = $t') hp)
   | .ACI_NORM =>
-    addTac (← reconstructTerm pf.getResult) Meta.AC.rewriteUnnormalizedTop
+    let tac := if ← useNative then Meta.AC.nativeRewriteUnnormalizedTop else Meta.AC.rewriteUnnormalizedTop
+    addTac (← reconstructTerm pf.getResult) tac
   | .ABSORB =>
     let e ← reconstructTerm pf.getResult[0]!
     let z ← reconstructTerm pf.getResult[1]!

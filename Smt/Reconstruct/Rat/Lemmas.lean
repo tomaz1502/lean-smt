@@ -5,9 +5,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Tomaz Gomes Mascarenhas, Abdalrhman Mohamed
 -/
 
-import Batteries.Data.Rat
-
-import Smt.Reconstruct.Int.Core
 import Smt.Reconstruct.Rat.Core
 
 namespace Rat
@@ -131,7 +128,14 @@ end le_lt_defs
 theorem floor_le_self (r : Rat) : r.floor ≤ r := Rat.le_floor.mp (Int.le_refl r.floor)
 
 theorem self_le_floor_add_one (r : Rat) : r < ↑(r.floor + 1) := by
-  sorry
+  simp only [intCast_eq_divInt, floor_def']
+  conv =>
+    lhs
+    rw [← Rat.num_divInt_den r]
+  rw [Rat.divInt_lt_divInt (by simp [Rat.den_pos]) (by simp), Int.add_mul, Int.one_mul, Int.mul_one]
+  rw [← Int.add_lt_add_iff_right (r.num % r.den), Int.add_right_comm, Int.ediv_add_emod']
+  rw [Int.add_lt_add_iff_left]
+  apply Int.emod_lt _ (Int.ne_of_lt (by simp [Rat.den_pos])).symm
 
 end Rat
 

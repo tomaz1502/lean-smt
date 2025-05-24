@@ -8,9 +8,7 @@ Authors: Harun Khan
 import Lean
 
 import Smt.Reconstruct.Prop.Rewrites
-
-theorem Eq.trans₂ {α} {a b c d : α} (h₁ : a = b) (h₂ : b = c) (h₃ : c = d) : a = d :=
-  h₁ ▸ h₂ ▸ h₃
+import Smt.Reconstruct.Builtin.Lemmas
 
 namespace Smt.Reconstruct.Tactic
 

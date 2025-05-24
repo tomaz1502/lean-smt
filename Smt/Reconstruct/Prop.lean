@@ -5,21 +5,23 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Abdalrhman Mohamed
 -/
 
-import Smt.Reconstruct
+import Qq
 import Smt.Reconstruct.Builtin.AC
 import Smt.Reconstruct.Prop.Core
 import Smt.Reconstruct.Prop.Lemmas
 import Smt.Reconstruct.Prop.Rewrites
+import Smt.Reconstruct.Rewrite
+import Smt.Reconstruct.State
 
 namespace Smt.Reconstruct.Prop
 
 open Lean Qq
 
-@[smt_sort_reconstruct] def reconstructPropSort : SortReconstructor := fun s => do match s.getKind with
+def reconstructPropSort : SortReconstructor := fun s => do match s.getKind with
   | .BOOLEAN_SORT => return q(Prop)
   | _             => return none
 
-@[smt_term_reconstruct] def reconstructProp : TermReconstructor := fun t => do match t.getKind with
+def reconstructProp : TermReconstructor := fun t => do match t.getKind with
   | .CONST_BOOLEAN => return if t.getBooleanValue! then q(True) else q(False)
   | .NOT =>
     let b : Q(Prop) ← reconstructTerm t[0]!
@@ -84,33 +86,33 @@ def reconstructRewrite (pf : cvc5.Proof) : ReconstructM (Option Expr) := do
     let q : Q(Prop) ← reconstructTerm pf.getArguments[2]!
     addThm q(andN [$p → $q, $q → $p] = ($p = $q)) q(@Prop.bool_dual_impl_eq $p $q)
   | .BOOL_AND_CONF =>
-    let xs : Q(List Prop) ← reconstructTerms pf.getArguments[1]!.getChildren
+    let xs : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[1]!.getChildren
     let w : Q(Prop) ← reconstructTerm pf.getArguments[2]!
-    let ys : Q(List Prop) ← reconstructTerms pf.getArguments[3]!.getChildren
-    let zs : Q(List Prop) ← reconstructTerms pf.getArguments[4]!.getChildren
+    let ys : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[3]!.getChildren
+    let zs : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[4]!.getChildren
     addThm q(andN ($xs ++ $w :: ($ys ++ (¬$w) :: $zs)) = False) q(@Prop.bool_and_conf $xs $w $ys $zs)
   | .BOOL_AND_CONF2 =>
-    let xs : Q(List Prop) ← reconstructTerms pf.getArguments[1]!.getChildren
+    let xs : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[1]!.getChildren
     let w : Q(Prop) ← reconstructTerm pf.getArguments[2]!
-    let ys : Q(List Prop) ← reconstructTerms pf.getArguments[3]!.getChildren
-    let zs : Q(List Prop) ← reconstructTerms pf.getArguments[4]!.getChildren
+    let ys : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[3]!.getChildren
+    let zs : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[4]!.getChildren
     addThm q(andN ($xs ++ (¬$w) :: ($ys ++ $w :: $zs)) = False) q(@Prop.bool_and_conf2 $xs $w $ys $zs)
   | .BOOL_OR_TAUT =>
-    let xs : Q(List Prop) ← reconstructTerms pf.getArguments[1]!.getChildren
+    let xs : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[1]!.getChildren
     let w : Q(Prop) ← reconstructTerm pf.getArguments[2]!
-    let ys : Q(List Prop) ← reconstructTerms pf.getArguments[3]!.getChildren
-    let zs : Q(List Prop) ← reconstructTerms pf.getArguments[4]!.getChildren
+    let ys : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[3]!.getChildren
+    let zs : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[4]!.getChildren
     addThm q(orN ($xs ++ $w :: ($ys ++ (¬$w) :: $zs)) = True) q(@Prop.bool_or_taut $xs $w $ys $zs)
   | .BOOL_OR_TAUT2 =>
-    let xs : Q(List Prop) ← reconstructTerms pf.getArguments[1]!.getChildren
+    let xs : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[1]!.getChildren
     let w : Q(Prop) ← reconstructTerm pf.getArguments[2]!
-    let ys : Q(List Prop) ← reconstructTerms pf.getArguments[3]!.getChildren
-    let zs : Q(List Prop) ← reconstructTerms pf.getArguments[4]!.getChildren
+    let ys : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[3]!.getChildren
+    let zs : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[4]!.getChildren
     addThm q(orN ($xs ++ (¬$w) :: ($ys ++ $w :: $zs)) = True) q(@Prop.bool_or_taut2 $xs $w $ys $zs)
   | .BOOL_OR_DE_MORGAN =>
     let p : Q(Prop) ← reconstructTerm pf.getArguments[1]!
     let q : Q(Prop) ← reconstructTerm pf.getArguments[2]!
-    let zs : Q(List Prop) ← reconstructTerms pf.getArguments[3]!.getChildren
+    let zs : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[3]!.getChildren
     addThm q((¬orN ($p :: $q :: $zs)) = andN [¬$p, ¬orN ($q :: $zs)]) q(@Prop.bool_or_de_morgan $p $q $zs)
   | .BOOL_IMPLIES_DE_MORGAN =>
     let p : Q(Prop) ← reconstructTerm pf.getArguments[1]!
@@ -119,19 +121,19 @@ def reconstructRewrite (pf : cvc5.Proof) : ReconstructM (Option Expr) := do
   | .BOOL_AND_DE_MORGAN =>
     let p : Q(Prop) ← reconstructTerm pf.getArguments[1]!
     let q : Q(Prop) ← reconstructTerm pf.getArguments[2]!
-    let zs : Q(List Prop) ← reconstructTerms pf.getArguments[3]!.getChildren
+    let zs : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[3]!.getChildren
     addThm q((¬andN ($p :: $q :: $zs)) = orN [¬$p, ¬andN ($q :: $zs)]) q(@Prop.bool_and_de_morgan $p $q $zs)
   | .BOOL_OR_AND_DISTRIB =>
     let y₁ : Q(Prop) ← reconstructTerm pf.getArguments[1]!
     let y₂ : Q(Prop) ← reconstructTerm pf.getArguments[2]!
-    let ys : Q(List Prop) ← reconstructTerms pf.getArguments[3]!.getChildren
+    let ys : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[3]!.getChildren
     let z₁ : Q(Prop) ← reconstructTerm pf.getArguments[4]!
-    let zs : Q(List Prop) ← reconstructTerms pf.getArguments[5]!.getChildren
+    let zs : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[5]!.getChildren
     addThm (← reconstructTerm pf.getResult) q(@Prop.bool_or_and_distrib $y₁ $y₂ $ys $z₁ $zs)
   | .BOOL_IMPLIES_OR_DISTRIB =>
     let y₁ : Q(Prop) ← reconstructTerm pf.getArguments[1]!
     let y₂ : Q(Prop) ← reconstructTerm pf.getArguments[2]!
-    let ys : Q(List Prop) ← reconstructTerms pf.getArguments[3]!.getChildren
+    let ys : Q(List Prop) ← reconstructTerms 0 q(Prop) pf.getArguments[3]!.getChildren
     let z : Q(Prop) ← reconstructTerm pf.getArguments[4]!
     addThm q((orN ($y₁ :: $y₂ :: $ys) → $z) = andN [$y₁ → $z, orN ($y₂ :: $ys) → $z])
            q(@Prop.bool_implies_or_distrib $y₁ $y₂ $ys $z)
@@ -292,7 +294,7 @@ def reconstructChainResolution (cs as : Array cvc5.Term) (ps : Array Expr) : Rec
     cc := getResolutionResult cc (clausify cs[i]! l) pol l
   return cp
 
-@[smt_proof_reconstruct] def reconstructPropProof : ProofReconstructor := fun pf => do match pf.getRule with
+def reconstructPropProof : ProofReconstructor := fun pf => do match pf.getRule with
   | .DSL_REWRITE => reconstructRewrite pf
   | .ITE_EQ =>
     let (u, (α : Q(Sort u))) ← reconstructSortLevelAndSort pf.getArguments[0]![1]!.getSort
@@ -319,14 +321,16 @@ def reconstructChainResolution (cs as : Array cvc5.Term) (ps : Array Expr) : Rec
     let q : Q(Prop) ← reconstructTerm pf.getResult
     let hp : Q($p) ← reconstructProof pf.getChildren[0]!
     let hpq : Q($p = $q) ← Meta.mkFreshExprMVar q($p = $q)
-    Meta.AC.rewriteUnnormalizedTop hpq.mvarId!
+    let tac := if ← useNative then Meta.AC.nativeRewriteUnnormalizedTop else Meta.AC.rewriteUnnormalizedTop
+    tac hpq.mvarId!
     addThm q($q) q(Prop.eqResolve $hp $hpq)
   | .REORDERING =>
     let p : Q(Prop) ← reconstructTerm pf.getChildren[0]!.getResult
     let q : Q(Prop) ← reconstructTerm pf.getResult
     let hp : Q($p) ← reconstructProof pf.getChildren[0]!
     let hpq : Q($p = $q) ← Meta.mkFreshExprMVar q($p = $q)
-    Meta.AC.rewriteUnnormalizedTop hpq.mvarId!
+    let tac := if ← useNative then Meta.AC.nativeRewriteUnnormalizedTop else Meta.AC.rewriteUnnormalizedTop
+    tac hpq.mvarId!
     addThm q($q) q(Prop.eqResolve $hp $hpq)
   | .SPLIT =>
     let q : Q(Prop) ← reconstructTerm pf.getArguments[0]!

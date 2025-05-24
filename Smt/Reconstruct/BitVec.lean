@@ -5,10 +5,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Abdalrhman Mohamed
 -/
 
+import Qq
 import Smt.Reconstruct.Bool.Tactic
 import Smt.Reconstruct.BitVec.Bitblast
 import Smt.Reconstruct.Prop.Core
-import Smt.Reconstruct
+import Smt.Reconstruct.State
 
 def Std.Range.foldlM [Monad m] (f : α → Nat → m α) (r : Range) (init : α) : m α := do
   let mut a := init
@@ -20,7 +21,7 @@ namespace Smt.Reconstruct.BitVec
 
 open Lean Qq
 
-@[smt_sort_reconstruct] def reconstructBitVecSort : SortReconstructor := fun s => do match s.getKind with
+def reconstructBitVecSort : SortReconstructor := fun s => do match s.getKind with
   | .BITVECTOR_SORT =>
     let w : Nat := s.getBitVectorSize!.toNat
     return q(BitVec $w)
@@ -65,7 +66,7 @@ where
       curr := mkApp2 op (← reconstructTerm ct) curr
     return currInst
 
-@[smt_term_reconstruct] def reconstructBitVec : TermReconstructor := fun t => do match t.getKind with
+def reconstructBitVec : TermReconstructor := fun t => do match t.getKind with
   | .CONST_BITVECTOR =>
     let w : Nat := t.getSort.getBitVectorSize!.toNat
     let v : Nat := (t.getBitVectorValue! 10).toNat!
@@ -242,7 +243,7 @@ def reconstructRewrite (pf : cvc5.Proof) : ReconstructM (Option Expr) := do
   match pf.getRewriteRule with
   | _ => return none
 
-@[smt_proof_reconstruct] def reconstructBitVecProof : ProofReconstructor := fun pf => do match pf.getRule with
+def reconstructBitVecProof : ProofReconstructor := fun pf => do match pf.getRule with
   | .DSL_REWRITE => reconstructRewrite pf
   | .BV_BITBLAST_STEP =>
     let t := pf.getArguments[0]![0]!
