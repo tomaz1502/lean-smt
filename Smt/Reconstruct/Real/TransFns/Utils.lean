@@ -178,4 +178,24 @@ theorem taylorSin_neg (x : Real) (d : Nat) :
   · rw [Odd.neg_pow h]
     simp
 
+theorem neg_one_le_iteratedDeriv_sin (n : Nat) (x : Real) : -1 ≤ (iteratedDeriv n sin) x := by
+  have :=  Nat.mod_lt n (show 4 > 0 by decide)
+  interval_cases hn : n % 4
+  <;> simp [iteratedDeriv_sin_cos, hn, sin_le_one, neg_one_le_sin, cos_le_one, neg_one_le_cos]
+
+theorem iteratedDeriv_sin_le_one (n : Nat) (x : Real) : (iteratedDeriv n sin) x ≤ 1 := by
+  have :=  Nat.mod_lt n (show 4 > 0 by decide)
+  interval_cases hn : n % 4
+  <;> simp [iteratedDeriv_sin_cos, hn, sin_le_one, neg_one_le_sin, cos_le_one, neg_one_le_cos, neg_le]
+
+theorem neg_one_le_iteratedDeriv_cos (n : Nat) (x : Real) : -1 ≤ (iteratedDeriv n cos) x := by
+  have :=  Nat.mod_lt n (show 4 > 0 by decide)
+  interval_cases hn : n % 4
+  <;> simp [iteratedDeriv_sin_cos, hn, sin_le_one, neg_one_le_sin, cos_le_one, neg_one_le_cos]
+
+theorem iteratedDeriv_cos_le_one (n : Nat) (x : Real) : (iteratedDeriv n cos) x ≤ 1 := by
+  have :=  Nat.mod_lt n (show 4 > 0 by decide)
+  interval_cases hn : n % 4
+  <;> simp [iteratedDeriv_sin_cos, hn, sin_le_one, neg_one_le_sin, cos_le_one, neg_one_le_cos, neg_le]
+
 end Smt.Reconstruct.Real
