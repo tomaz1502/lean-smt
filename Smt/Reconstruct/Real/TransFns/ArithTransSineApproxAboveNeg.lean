@@ -39,11 +39,21 @@ theorem sineApproxAboveNeg (x : Real) (d k : Nat) (hd : d =2*k + 1) (hx : x ≤ 
     · apply mul_nonneg (le_of_lt (Even.pow_pos (by rw [hd]; norm_num) (by linarith))) (by simp [Nat.factorial_pos (d + 1)])
   · simp [hx]
 
-theorem arithTransSineApproxAboveNeg (d k : Nat) (hd : d = 2*k + 1) (l u t : ℝ)
-                                     (ht : l ≤ t ∧ t ≤ u) (hu : u ≤ 0) (hl : -π ≤ l) :
+theorem arithTransSineApproxAboveNeg (d k : Nat) (l u t : ℝ) (hd : d = 2*k + 1) (hu : u ≤ 0) (hl : -π ≤ l) :
   let p: ℝ → ℝ := fun x => taylorWithinEval Real.sin d Set.univ 0 x + (x ^ (d + 1)) / (d + 1).factorial
-  Real.sin t ≤ ((p l - p u) / (l - u)) * (t - l) + p l := by
-  intro p; simp only [p]
+  (t ≥ l ∧ t ≤ u) → Real.sin t ≤ ((p l - p u) / (l - u)) * (t - l) + p l := by
+  intro p ht; simp only [p]
+  apply le_convex_of_le ht
+        (sineApproxAboveNeg l d k hd (by linarith))
+        (sineApproxAboveNeg u d k hd hu)
+        convexOn_sin_Icc (mem_Icc.mpr ⟨hl, by linarith⟩)
+                         (mem_Icc.mpr ⟨by linarith, hu⟩)
+
+theorem arithTransSineApproxAboveNeg' (d k : Nat) (l u t evalL evalU : ℝ) (hd : d = 2*k + 1) (hu : u ≤ 0) (hl : -π ≤ l)
+  (hl' : evalL = taylorWithinEval Real.sin d Set.univ 0 l + (l ^ (d + 1)) / (d + 1).factorial)
+  (hu' : evalU = taylorWithinEval Real.sin d Set.univ 0 u + (u ^ (d + 1)) / (d + 1).factorial) :
+  (t ≥ l ∧ t ≤ u) → Real.sin t ≤ ((evalL - evalU) / (l - u)) * (t - l) + evalL := by
+  intro ht; simp only [hl', hu']
   apply le_convex_of_le ht
         (sineApproxAboveNeg l d k hd (by linarith))
         (sineApproxAboveNeg u d k hd hu)

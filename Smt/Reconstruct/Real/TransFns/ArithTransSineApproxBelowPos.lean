@@ -89,4 +89,24 @@ theorem arithTransSineApproxBelowPos (d : ℕ) (t l u : ℝ) (ht : l ≤ t ∧ t
         (by simp; linarith)
         (by simp; linarith)
 
+theorem arithTransSineApproxBelowPos' (d : ℕ) (t l u evalL evalU : ℝ) (hl : 0 ≤ l) (hu : u ≤ Real.pi)
+    (hl' : evalL = taylorWithinEval Real.sin d Set.univ 0 l - (l ^ (d + 1) / (d + 1).factorial))
+    (hu' : evalU = taylorWithinEval Real.sin d Set.univ 0 u - (u ^ (d + 1) / (d + 1).factorial)) :
+    (t ≥ l ∧ t ≤ u) → sin t ≥ ((evalL - evalU) / (l - u)) * (t - l) + evalL := by
+  intros ht; simp only [hl', hu']
+
+  exact ge_concave_of_ge (l := l) (u := u) (t := t) (p := fun x => taylorWithinEval Real.sin d Set.univ 0 x - x ^ (d + 1) / (d + 1).factorial) (f := sin) (s := Icc l u) ht
+        (sineApproxBelowPos d hl)
+        (sineApproxBelowPos d (by linarith))
+        (by
+          apply concaveIccSubset (f := sin) (l2 := 0) (r2 := Real.pi) concaveOn_sin_Icc
+          · simp [Icc]
+            intros a h1 h2
+            constructor
+            · exact Preorder.le_trans 0 l a hl h1
+            · exact le_trans h2 hu
+        )
+        (by simp; linarith)
+        (by simp; linarith)
+
 end Smt.Reconstruct.Real.TransFns
