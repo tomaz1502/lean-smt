@@ -52,7 +52,8 @@ theorem arithTransSineApproxAboveNeg (d k : Nat) (l u t : ℝ) (hd : d = 2*k + 1
 theorem arithTransSineApproxAboveNeg' (d k : Nat) (l u t evalL evalU : ℝ) (hd : d = 2*k + 1) (hu : u ≤ 0) (hl : -π ≤ l)
   (hl' : evalL = taylorWithinEval Real.sin d Set.univ 0 l + (l ^ (d + 1)) / (d + 1).factorial)
   (hu' : evalU = taylorWithinEval Real.sin d Set.univ 0 u + (u ^ (d + 1)) / (d + 1).factorial) :
-  (t ≥ l ∧ t ≤ u) → Real.sin t ≤ ((evalL - evalU) / (l - u)) * (t - l) + evalL := by
+  (t ≥ l ∧ t ≤ u) → Real.sin t ≤ evalL + ((evalL - evalU) / (l - u)) * (t - l) := by
+  rw [add_comm]
   intro ht; simp only [hl', hu']
   apply le_convex_of_le ht
         (sineApproxAboveNeg l d k hd (by linarith))

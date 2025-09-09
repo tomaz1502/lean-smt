@@ -89,13 +89,14 @@ theorem arithTransSineApproxBelowPos (d : ℕ) (t l u : ℝ) (ht : l ≤ t ∧ t
         (by simp; linarith)
         (by simp; linarith)
 
-theorem arithTransSineApproxBelowPos' (d : ℕ) (t l u evalL evalU : ℝ) (hl : 0 ≤ l) (hu : u ≤ Real.pi)
-    (hl' : evalL = taylorWithinEval Real.sin d Set.univ 0 l - (l ^ (d + 1) / (d + 1).factorial))
-    (hu' : evalU = taylorWithinEval Real.sin d Set.univ 0 u - (u ^ (d + 1) / (d + 1).factorial)) :
-    (t ≥ l ∧ t ≤ u) → sin t ≥ ((evalL - evalU) / (l - u)) * (t - l) + evalL := by
+theorem arithTransSineApproxBelowPos' (d : ℕ) (t lb ub evalL evalU : ℝ) (hl : 0 ≤ lb) (hu : ub ≤ Real.pi)
+    (hl' : evalL = taylorWithinEval Real.sin d Set.univ 0 lb - (lb ^ (d + 1) / (d + 1).factorial))
+    (hu' : evalU = taylorWithinEval Real.sin d Set.univ 0 ub - (ub ^ (d + 1) / (d + 1).factorial)) :
+    (t ≥ lb ∧ t ≤ ub) → sin t ≥ evalL + ((evalL - evalU) / (lb - ub)) * (t - lb) := by
+  rw [add_comm]
   intros ht; simp only [hl', hu']
 
-  exact ge_concave_of_ge (l := l) (u := u) (t := t) (p := fun x => taylorWithinEval Real.sin d Set.univ 0 x - x ^ (d + 1) / (d + 1).factorial) (f := sin) (s := Icc l u) ht
+  exact ge_concave_of_ge (l := lb) (u := ub) (t := t) (p := fun x => taylorWithinEval Real.sin d Set.univ 0 x - x ^ (d + 1) / (d + 1).factorial) (f := sin) (s := Icc lb ub) ht
         (sineApproxBelowPos d hl)
         (sineApproxBelowPos d (by linarith))
         (by
@@ -103,7 +104,7 @@ theorem arithTransSineApproxBelowPos' (d : ℕ) (t l u evalL evalU : ℝ) (hl : 
           · simp [Icc]
             intros a h1 h2
             constructor
-            · exact Preorder.le_trans 0 l a hl h1
+            · exact Preorder.le_trans 0 lb a hl h1
             · exact le_trans h2 hu
         )
         (by simp; linarith)

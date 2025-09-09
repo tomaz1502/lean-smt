@@ -755,27 +755,82 @@ def reconstructRealProof : ProofReconstructor := fun pf => do match pf.getRule w
     /- dbg_trace "u = {pf.getArguments[5]!}" -/
     return none
   | .ARITH_TRANS_SINE_APPROX_ABOVE_NEG =>
-    dbg_trace "[[SINE_APPROX_ABOVE_NEG]]"
-    dbg_trace "d = {pf.getArguments[0]!}"
-    dbg_trace "t = {pf.getArguments[1]!}"
-    dbg_trace "lb = {pf.getArguments[2]!}"
-    dbg_trace "ub = {pf.getArguments[3]!}"
-    dbg_trace "l = {pf.getArguments[4]!}"
-    dbg_trace "u = {pf.getArguments[5]!}"
-    let t ← reconstructTerm pf.getArguments[1]!
-    dbg_trace "real t = {t}"
-    return none
+    let d : Q(Int) ← reconstructTerm pf.getArguments[0]!
+    let t : Q(Real) ← reconstructTerm pf.getArguments[1]!
+    let lb : Q(Real) ← reconstructTerm pf.getArguments[2]!
+    let ub : Q(Real) ← reconstructTerm pf.getArguments[3]!
+    let l : Q(Real) ← reconstructTerm pf.getArguments[4]!
+    let u : Q(Real) ← reconstructTerm pf.getArguments[5]!
+    let real_d : Q(Nat) := q(Int.natAbs $d - 1)
+    let d_half : Q(Nat) := q(Nat.div $real_d 2)
+
+    let goalDeg : Q(Prop) := q($real_d = 2 * $d_half + 1)
+    let (.mvar goalDeg_pf) ← Meta.mkFreshExprMVar (some goalDeg) | throwError "impossible 3"
+    normNumFactorial goalDeg_pf
+
+    let ubNonpos : Q(Prop) := q($ub ≤ 0)
+    let (.mvar ubNonpos_pf) ← Meta.mkFreshExprMVar (some ubNonpos) | throwError "impossible 4"
+    Real.normNum ubNonpos_pf
+
+    let lbBound : Q(Prop) := q(-Real.pi ≤ $lb)
+    let (.mvar lbBound_pf) ← Meta.mkFreshExprMVar (some lbBound) | throwError "impossible 4"
+    -- linarith [pi_gt_d20, pi_lt_d20] at ubBound_pf
+    Linarith.linarith false [.const `Real.pi_gt_d20 [], .const `Real.pi_lt_d20 []] (g := lbBound_pf)
+
+    let pf_rat_val_l ← Meta.mkAppM ``TransFns.sinEmbedding #[real_d, lb]
+    let goalL : Q(Prop) := q($l = taylorWithinEval Real.sin $real_d Set.univ 0 $lb + ($lb ^ ($real_d + 1) / ($real_d + 1).factorial))
+    let (.mvar mvL) ← Meta.mkFreshExprMVar (some goalL) | throwError "impossible 2"
+    let { eNew, eqProof, mvarIds := _ } ← mvL.rewrite q($l = taylorWithinEval Real.sin $real_d Set.univ 0 $lb + ($lb ^ ($real_d + 1) / ($real_d + 1).factorial)) pf_rat_val_l
+    let mvL' ← mvL.replaceTargetEq eNew eqProof
+    normNumFactorial mvL'
+
+    let pf_rat_val_u ← Meta.mkAppM ``TransFns.sinEmbedding #[real_d, ub]
+    let goalU : Q(Prop) := q($u = taylorWithinEval Real.sin $real_d Set.univ 0 $ub + ($ub ^ ($real_d + 1) / ($real_d + 1).factorial))
+    let (.mvar mvU) ← Meta.mkFreshExprMVar (some goalU) | throwError "impossible 2"
+    let { eNew, eqProof, mvarIds := _ } ← mvU.rewrite q($u = taylorWithinEval Real.sin $real_d Set.univ 0 $ub + ($ub ^ ($real_d + 1) / ($real_d + 1).factorial)) pf_rat_val_u
+    let mvU' ← mvU.replaceTargetEq eNew eqProof
+    normNumFactorial mvU'
+
+    let prop ← reconstructTerm pf.getResult
+    let pf ← Meta.mkAppM ``TransFns.arithTransSineApproxAboveNeg'
+      #[real_d, d_half, lb, ub, t, l, u, .mvar goalDeg_pf, .mvar ubNonpos_pf, .mvar lbBound_pf, .mvar mvL, .mvar mvU]
+    addThm prop pf
   | .ARITH_TRANS_SINE_APPROX_BELOW_POS =>
-    dbg_trace "[[SINE_APPROX_BELOW_POS]]"
-    dbg_trace "d = {pf.getArguments[0]!}"
-    dbg_trace "t = {pf.getArguments[1]!}"
-    dbg_trace "lb = {pf.getArguments[2]!}"
-    dbg_trace "ub = {pf.getArguments[3]!}"
-    dbg_trace "l = {pf.getArguments[4]!}"
-    dbg_trace "u = {pf.getArguments[5]!}"
-    let t ← reconstructTerm pf.getArguments[1]!
-    dbg_trace "real t = {t}"
-    return none
+    let d : Q(Int) ← reconstructTerm pf.getArguments[0]!
+    let t : Q(Real) ← reconstructTerm pf.getArguments[1]!
+    let lb : Q(Real) ← reconstructTerm pf.getArguments[2]!
+    let ub : Q(Real) ← reconstructTerm pf.getArguments[3]!
+    let l : Q(Real) ← reconstructTerm pf.getArguments[4]!
+    let u : Q(Real) ← reconstructTerm pf.getArguments[5]!
+    let real_d : Q(Nat) := q(Int.natAbs $d - 1)
+
+    let lbNonneg : Q(Prop) := q(0 ≤ $lb)
+    let (.mvar lbNonneg_pf) ← Meta.mkFreshExprMVar (some lbNonneg) | throwError "impossible 4"
+    Real.normNum lbNonneg_pf
+
+    let ubBound : Q(Prop) := q($ub ≤ Real.pi)
+    let (.mvar ubBound_pf) ← Meta.mkFreshExprMVar (some ubBound) | throwError "impossible 4"
+    -- linarith [pi_gt_d20, pi_lt_d20] at ubBound_pf
+    Linarith.linarith false [.const `Real.pi_gt_d20 [], .const `Real.pi_lt_d20 []] (g := ubBound_pf)
+
+    let pf_rat_val_l ← Meta.mkAppM ``TransFns.sinEmbedding #[real_d, lb]
+    let goalL : Q(Prop) := q($l = taylorWithinEval Real.sin $real_d Set.univ 0 $lb - ($lb ^ ($real_d + 1) / ($real_d + 1).factorial))
+    let (.mvar mvL) ← Meta.mkFreshExprMVar (some goalL) | throwError "impossible 2"
+    let { eNew, eqProof, mvarIds := _ } ← mvL.rewrite q($l = taylorWithinEval Real.sin $real_d Set.univ 0 $lb - ($lb ^ ($real_d + 1) / ($real_d + 1).factorial)) pf_rat_val_l
+    let mvL' ← mvL.replaceTargetEq eNew eqProof
+    normNumFactorial mvL'
+
+    let pf_rat_val_u ← Meta.mkAppM ``TransFns.sinEmbedding #[real_d, ub]
+    let goalU : Q(Prop) := q($u = taylorWithinEval Real.sin $real_d Set.univ 0 $ub - ($ub ^ ($real_d + 1) / ($real_d + 1).factorial))
+    let (.mvar mvU) ← Meta.mkFreshExprMVar (some goalU) | throwError "impossible 2"
+    let { eNew, eqProof, mvarIds := _ } ← mvU.rewrite q($u = taylorWithinEval Real.sin $real_d Set.univ 0 $ub - ($ub ^ ($real_d + 1) / ($real_d + 1).factorial)) pf_rat_val_u
+    let mvU' ← mvU.replaceTargetEq eNew eqProof
+    normNumFactorial mvU'
+
+    let prop ← reconstructTerm pf.getResult
+    let pf ← Meta.mkAppM ``TransFns.arithTransSineApproxBelowPos'
+      #[real_d, t, lb, ub, l, u, .mvar lbNonneg_pf, .mvar ubBound_pf, .mvar mvL, .mvar mvU]
+    addThm prop pf
   | .ARITH_TRANS_SINE_APPROX_BELOW_NEG =>
     /- dbg_trace "d = {pf.getArguments[0]!}" -/
     /- dbg_trace "t = {pf.getArguments[1]!}" -/
@@ -793,5 +848,21 @@ normNumFactorial (mv : MVarId) : MetaM Unit := withTraceNode `smt.reconstruct.no
   let ctx ← Meta.Simp.mkContext (simpTheorems := #[simpTheorems])
   if let some (_, mv) ← Mathlib.Meta.NormNum.normNumAt mv ctx #[] true true then
     throwError "[norm_num]: could not prove {← mv.getType}"
+nativeDecide (p : Q(Prop)) : MetaM Q($p) := do
+  let hp : Q(Decidable $p) ← Meta.synthInstance q(Decidable $p)
+  let auxDeclName ← mkNativeAuxDecl `_nativePolynorm q(Bool) q(decide $p)
+  let b : Q(Bool) := .const auxDeclName []
+  return .app q(@of_decide_eq_true $p $hp) (.app q(Lean.ofReduceBool $b true) q(Eq.refl true))
+mkNativeAuxDecl (baseName : Name) (type value : Expr) : MetaM Name := do
+  let auxName ← match (← getEnv).asyncPrefix? with
+    | none          => Lean.mkAuxName baseName 1
+    | some declName => Lean.mkAuxName (declName ++ baseName) 1
+  let decl := Declaration.defnDecl {
+    name := auxName, levelParams := [], type, value
+    hints := .abbrev
+    safety := .safe
+  }
+  addAndCompile decl
+  pure auxName
 
 end Smt.Reconstruct.Real
