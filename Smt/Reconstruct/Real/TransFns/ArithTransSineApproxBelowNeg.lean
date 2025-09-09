@@ -31,4 +31,9 @@ theorem arithTransSineApproxBelowNeg (d k : Nat) (hd : d = 4*k + 1) (hx : x < 0)
   apply mul_nonpos_of_nonpos_of_nonneg (Real.sin_nonpos_of_nonnpos_of_neg_pi_le (le_of_lt (mem_Ioo.mp hx').2) (le_trans hx2 (le_of_lt (mem_Ioo.mp hx').1)))
   apply Even.pow_nonneg (by rw [even_iff_two_dvd]; omega)
 
+
+theorem arithTransSineApproxBelowNeg' (x : ℝ) (d k : ℕ) (hd : d = 2 * k + 1)
+    (hx : x ≤ 0) (hx2 : -π ≤ x) :
+  taylorWithinEval Real.sin d Set.univ 0 x - x ^ (d + 1) / (d + 1).factorial ≤ Real.sin x := sorry
+
 end Smt.Reconstruct.Real.TransFns

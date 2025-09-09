@@ -67,4 +67,12 @@ theorem arithTransExpApproxAbovePos' (d : Nat) (l u t evalL evalU : ℝ) (hl : 0
   rw [add_comm, hl', hu']
   exact arithTransExpApproxAbovePos'' d l u t hl hd
 
+theorem arithTransExpApproxAbovePosComp (d : Nat) (l u t evalL evalU : ℝ) (hl : 0 ≤ l) (hd : u^(d+1) < Nat.factorial (d+1))
+    (hl' : evalL = expTaylor d l / (1-l^(d+1)/(d+1)!))
+    (hu' : evalU = expTaylor d u / (1-u^(d+1)/(d+1)!)) :
+    (t ≥ l ∧ t ≤ u) → Real.exp t ≤ evalL + ((evalL - evalU) / (l - u)) * (t - l) := by
+  rw [<- expEmbedding] at hl'
+  rw [<- expEmbedding] at hu'
+  exact fun a => arithTransExpApproxAbovePos' d l u t evalL evalU hl hd hl' hu' a
+
 end Smt.Reconstruct.Real.TransFns

@@ -89,4 +89,10 @@ theorem arithTransExpApproxAboveNeg' (d k : Nat) (l u t : ℝ) (evalL evalU : �
   rw [add_comm, <- hl, <- hu]
   exact arithTransExpApproxAboveNeg d k hd l u t ht hu'
 
+theorem arithTransExpApproxAboveNegComp (d k : Nat) (l u t : ℝ) (evalL evalU : ℝ) (hl : expTaylor d l = evalL) (hu : expTaylor d u = evalU) (hd : d = 2 * k) (hu' : u < 0):
+    t ≥ l ∧ t ≤ u → Real.exp t ≤ evalL + ((evalL - evalU) / (l - u)) * (t - l) := by
+  rw [<- expEmbedding] at hl
+  rw [<- expEmbedding] at hu
+  exact fun a => arithTransExpApproxAboveNeg' d k l u t evalL evalU hl hu hd hu' a
+
 end Smt.Reconstruct.Real.TransFns

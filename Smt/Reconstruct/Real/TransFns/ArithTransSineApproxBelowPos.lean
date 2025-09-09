@@ -110,4 +110,12 @@ theorem arithTransSineApproxBelowPos' (d : ℕ) (t lb ub evalL evalU : ℝ) (hl 
         (by simp; linarith)
         (by simp; linarith)
 
+theorem arithTransSineApproxBelowPosComp (d : ℕ) (t lb ub evalL evalU : ℝ) (hl : 0 ≤ lb) (hu : ub ≤ Real.pi)
+    (hl' : evalL = sinTaylor d lb - (lb ^ (d + 1) / (d + 1).factorial))
+    (hu' : evalU = sinTaylor d ub - (ub ^ (d + 1) / (d + 1).factorial)) :
+    (t ≥ lb ∧ t ≤ ub) → sin t ≥ evalL + ((evalL - evalU) / (lb - ub)) * (t - lb) := by
+  rw [<- sinEmbedding] at hl'
+  rw [<- sinEmbedding] at hu'
+  exact fun a => arithTransSineApproxBelowPos' d t lb ub evalL evalU hl hu hl' hu' a
+
 end Smt.Reconstruct.Real.TransFns

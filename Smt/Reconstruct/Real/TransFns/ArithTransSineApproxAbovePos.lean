@@ -22,4 +22,9 @@ theorem arithTransSineApproxAbovePos (d k : ℕ) (hd : d = 4*k + 1)
   rw [← neg_neg x, sin_neg, taylorSin_neg, neg_le_neg_iff]
   apply arithTransSineApproxBelowNeg d k hd (by linarith) (by linarith)
 
+
+theorem arithTransSineApproxAbovePos' (d k : ℕ) (hd : d = 2 * k + 1)
+    (hx : 0 ≤ x) (hx2 : x ≤ π) :
+  Real.sin x ≤ taylorWithinEval Real.sin d Set.univ 0 x + x ^ (d + 1) / (d + 1).factorial := sorry
+
 end Smt.Reconstruct.Real.TransFns

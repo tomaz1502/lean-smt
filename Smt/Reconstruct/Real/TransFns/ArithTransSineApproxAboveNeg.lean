@@ -61,4 +61,12 @@ theorem arithTransSineApproxAboveNeg' (d k : Nat) (l u t evalL evalU : ℝ) (hd 
         convexOn_sin_Icc (mem_Icc.mpr ⟨hl, by linarith⟩)
                          (mem_Icc.mpr ⟨by linarith, hu⟩)
 
+theorem arithTransSineApproxAboveNegComp (d k : Nat) (l u t evalL evalU : ℝ) (hd : d = 2*k + 1) (hu : u ≤ 0) (hl : -π ≤ l)
+    (hl' : evalL = sinTaylor d l + (l ^ (d + 1)) / (d + 1).factorial)
+    (hu' : evalU = sinTaylor d u + (u ^ (d + 1)) / (d + 1).factorial) :
+    (t ≥ l ∧ t ≤ u) → Real.sin t ≤ evalL + ((evalL - evalU) / (l - u)) * (t - l) := by
+  rw [<- sinEmbedding] at hl'
+  rw [<- sinEmbedding] at hu'
+  exact fun a => arithTransSineApproxAboveNeg' d k l u t evalL evalU hd hu hl hl' hu' a
+
 end Smt.Reconstruct.Real.TransFns

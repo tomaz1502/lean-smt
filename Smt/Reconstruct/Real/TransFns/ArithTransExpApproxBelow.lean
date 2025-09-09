@@ -11,15 +11,11 @@ https://cvc5.github.io/docs/cvc5-1.0.2/proofs/proof_rules.html#_CPPv4N4cvc58inte
 -/
 
 import Smt.Reconstruct.Real.TransFns.Utils
+import Smt.Reconstruct.Real.TransFns.ExpTaylorComp
 
 open Set Real
 
 namespace Smt.Reconstruct.Real.TransFns
-
-theorem iteratedDeriv_exp (n : Nat) : iteratedDeriv n exp = exp := by
-    induction' n with n hn
-    · simp
-    · simp [iteratedDeriv_succ, hn]
 
 theorem DifferentiableOn_iteratedDerivWithin {f : ℝ → ℝ} (hf : ContDiff ℝ ⊤ f) (hx : a < b) :
     DifferentiableOn ℝ (iteratedDerivWithin d f (Icc a b)) (Ioo a b) := by
@@ -57,26 +53,6 @@ theorem arithTransExpApproxBelow₃ (x : ℝ) (d n : ℕ) (_ : d = 2 * n + 1) (h
     Real.exp x ≥ taylorWithinEval Real.exp d Set.univ 0 x := by
   rw [hx]
   simp
-
-lemma taylor_exp_eq (d : ℕ) (x : ℝ) :
-    taylorWithinEval Real.exp d Set.univ 0 x =
-      ∑ i ∈ Finset.range (d + 1), x^i / Nat.factorial i := by
-  rw [taylor_within_apply]
-  congr
-  ext k
-  rw [iteratedDerivWithin_eq_iteratedDeriv (f := Real.exp) (d := k) (s := Set.univ)]
-  · rw [iteratedDeriv_exp]
-    simp
-    exact inv_mul_eq_div (↑k.factorial) (x ^ k)
-  · exact contDiff_exp
-  · exact uniqueDiffOn_univ
-  · exact trivial
-
-lemma ext_taylor_exp_eq (d : ℕ) :
-    taylorWithinEval Real.exp d Set.univ 0 =
-    fun x : Real => ∑ i ∈ Finset.range (d + 1), x ^ i / Nat.factorial i := by
-  ext x
-  exact taylor_exp_eq d x
 
 lemma deriv_taylor (d : ℕ) : deriv (taylorWithinEval Real.exp (d + 1) Set.univ 0) = taylorWithinEval Real.exp d Set.univ 0 := by
   rw [ext_taylor_exp_eq, ext_taylor_exp_eq]
@@ -158,6 +134,11 @@ theorem arithTransExpApproxBelow' (t : ℝ) (c : ℝ) (w : ℝ) (d n : ℕ) (hw 
       intros ht
       rw [<- hw]
       exact arithTransExpApproxBelow t c d n h ht
+
+theorem arithTransExpApproxBelowComp (t : ℝ) (c : ℝ) (w : ℝ) (d n : ℕ) (hw : expTaylor d c = w) (h : d = 2 * n + 1) :
+    t ≥ c → Real.exp t ≥ w := by
+      rw [<- expEmbedding] at hw
+      exact fun a => arithTransExpApproxBelow' t c w d n hw h a
 
 end Smt.Reconstruct.Real.TransFns
 
