@@ -16,15 +16,15 @@ open Set Real
 
 namespace Smt.Reconstruct.Real.TransFns
 
-theorem arithTransSineApproxAbovePos (d k : ℕ) (hd : d = 4*k + 1)
-                                     (hx : 0 < x) (hx2 : x ≤ π) :
-    Real.sin x ≤ taylorWithinEval Real.sin d Set.univ 0 x := by
-  rw [← neg_neg x, sin_neg, taylorSin_neg, neg_le_neg_iff]
-  apply arithTransSineApproxBelowNeg d k hd (by linarith) (by linarith)
-
-
-theorem arithTransSineApproxAbovePos' (d k : ℕ) (hd : d = 2 * k + 1)
-    (hx : 0 ≤ x) (hx2 : x ≤ π) :
-  Real.sin x ≤ taylorWithinEval Real.sin d Set.univ 0 x + x ^ (d + 1) / (d + 1).factorial := sorry
+theorem arithTransSineApproxAbovePos (d k : ℕ) (x : Real) (hd : d = 2*k + 1)
+                                     (hx : 0 < x) :
+    let p : ℕ → ℝ → ℝ := fun d x => taylorWithinEval Real.sin d Set.univ 0 x + x ^ (d + 1) / (d + 1).factorial
+    Real.sin x ≤ p d x := by
+  intro p
+  simp [p]
+  rw [← neg_neg x, sin_neg, taylorSin_neg, neg_add_eq_sub, ←neg_sub, neg_le_neg_iff, Even.neg_pow (by rw [hd]; norm_num)]
+  apply arithTransSineApproxBelowNeg d k
+  · linarith
+  · linarith
 
 end Smt.Reconstruct.Real.TransFns
