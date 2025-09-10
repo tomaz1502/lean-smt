@@ -28,13 +28,15 @@ def reconstructReal : TermReconstructor := fun t => do match t.getKind with
     | .TRANSCENDENTAL_PURIFY_ARG =>
       let .app _ X ← reconstructTerm t.getSkolemIndices![0]! | throwError "assumption failed: purify arg is always an application"
       let X : Q(Real) := X
-      let s : Q(Real) := q(Classical.epsilon (TransFns.shift_prop_part $X))
-      let y : Q(Real) := q(Classical.epsilon (TransFns.shift_prop $X $s))
-      return y
+      return q(TransFns.comp_y $X)
+      /- let s : Q(Real) := q(Classical.epsilon (TransFns.shift_prop_part $X)) -/
+      /- let y : Q(Real) := q(Classical.epsilon (TransFns.shift_prop $X $s)) -/
+      /- return y -/
     | .TRANSCENDENTAL_SINE_PHASE_SHIFT =>
       let X : Q(Real) ← reconstructTerm t.getSkolemIndices![0]!
-      let s : Q(Real) := q(Classical.epsilon (TransFns.shift_prop_part $X))
-      return s
+      return q(TransFns.comp_s $X)
+      /- let s : Q(Real) := q(Classical.epsilon (TransFns.shift_prop_part $X)) -/
+      /- return s -/
     | _ => return none
   | .CONST_RATIONAL =>
     let c : Std.Internal.Rat := t.getRationalValue!
@@ -629,9 +631,11 @@ def reconstructRealProof : ProofReconstructor := fun pf => do match pf.getRule w
     addThm q(($t = 0) = (Real.exp $t = 1)) q(TransFns.arithTransExpZeroEq $t)
   | .ARITH_TRANS_SINE_SHIFT =>
     let x : Q(Real) ← reconstructTerm pf.getArguments[0]!
-    let s : Q(Real) := q(Classical.epsilon (TransFns.shift_prop_part $x))
-    let y : Q(Real) := q(Classical.epsilon (TransFns.shift_prop $x $s))
-    addThm q(TransFns.shift_prop $x $s $y) q(TransFns.arithTransSineShift₁ $x)
+    let s : Q(Real) := q(TransFns.comp_s $x)
+    let y : Q(Real) := q(TransFns.comp_y $x)
+    /- let s : Q(Real) := q(Classical.epsilon (TransFns.shift_prop_part $x)) -/
+    /- let y : Q(Real) := q(Classical.epsilon (TransFns.shift_prop $x $s)) -/
+    addThm q(TransFns.shift_prop $x $s $y) q(TransFns.arithTransSineShiftComp $x)
   | .ARITH_TRANS_EXP_POSITIVITY =>
     let t : Q(Real) ← reconstructTerm pf.getArguments[0]!
     addThm q(Real.exp $t > 0) q(TransFns.arithTransExpPositivity $t)
@@ -726,22 +730,30 @@ def reconstructRealProof : ProofReconstructor := fun pf => do match pf.getRule w
     let proof ← Meta.mkAppM ``TransFns.arithTransExpApproxAboveNegComp #[d_nat, d_half, l, u, t, evalL, evalU, .mvar mvL, .mvar mvU, .mvar goalDeg_pf, .mvar uNeg_pf]
     addThm prop proof
   | .ARITH_TRANS_SINE_APPROX_ABOVE_POS =>
-    dbg_trace "[[ABOVE POS]]"
     let d : Q(Int) ← reconstructTerm pf.getArguments[0]!
     let t : Q(Real) ← reconstructTerm pf.getArguments[1]!
     let c : Q(Real) ← reconstructTerm pf.getArguments[2]!
     let lb : Q(Real) ← reconstructTerm pf.getArguments[3]!
-    let ub : Q(Real) ← reconstructTerm pf.getArguments[3]!
+    let ub : Q(Real) ← reconstructTerm pf.getArguments[4]!
+    let val : Q(Real) ← reconstructTerm (pf.getResult[1]!)[1]!
     let real_d : Q(Nat) := q(Int.natAbs $d - 1)
-    /- let l ← reconstructTerm pf.getArguments[4]! -/
-    /- let u ← reconstructTerm pf.getArguments[5]! -/
-    dbg_trace "d = {pf.getArguments[0]!}"
-    dbg_trace "t = {pf.getArguments[1]!}"
-    dbg_trace "c = {pf.getArguments[2]!}"
-    dbg_trace "lb = {pf.getArguments[3]!}"
-    dbg_trace "ub = {pf.getArguments[4]!}"
-    dbg_trace "result = {pf.getResult}"
-    return none
+    let k : Q(Nat) := q(Nat.div $real_d 2)
+
+    let goalDeg : Q(Prop) := q($real_d = 2 * $k + 1)
+    let (.mvar goalDeg_pf) ← Meta.mkFreshExprMVar (some goalDeg) | throwError "impossible 3"
+    normNumFactorial goalDeg_pf
+
+    let xPos : Q(Prop) := q(0 < $t)
+    let (.mvar xPos_proof) ← Meta.mkFreshExprMVar (some xPos) | throwError "impossible 3"
+    normNumFactorial xPos_proof
+
+    let goalVal : Q(Prop) := q($val = TransFns.sinTaylor $real_d $t + ($t ^ ($real_d + 1) / ($real_d + 1).factorial))
+    let (.mvar goalVal_proof) ← Meta.mkFreshExprMVar (some goalVal) | throwError "impossible 2"
+    normNumFactorial goalVal_proof
+
+    let prop : Q(Prop) ← reconstructTerm pf.getResult
+    let proof ← Meta.mkAppM ``TransFns.arithTransSineApproxAbovePosComp #[real_d, k, t, val, lb, ub, .mvar goalDeg_pf, .mvar xPos_proof, .mvar goalVal_proof]
+    addThm prop proof
   | .ARITH_TRANS_SINE_APPROX_ABOVE_NEG =>
     let d : Q(Int) ← reconstructTerm pf.getArguments[0]!
     let t : Q(Real) ← reconstructTerm pf.getArguments[1]!
@@ -808,14 +820,30 @@ def reconstructRealProof : ProofReconstructor := fun pf => do match pf.getRule w
       #[real_d, t, lb, ub, l, u, .mvar lbNonneg_pf, .mvar ubBound_pf, .mvar mvL, .mvar mvU]
     addThm prop pf
   | .ARITH_TRANS_SINE_APPROX_BELOW_NEG =>
-    dbg_trace "[[BELOW NEG]]"
-    dbg_trace "d = {pf.getArguments[0]!}"
-    dbg_trace "t = {pf.getArguments[1]!}"
-    dbg_trace "c = {pf.getArguments[2]!}"
-    dbg_trace "lb = {pf.getArguments[3]!}"
-    dbg_trace "ub = {pf.getArguments[4]!}"
-    dbg_trace "result = {pf.getResult}"
-    return none
+    let d : Q(Int) ← reconstructTerm pf.getArguments[0]!
+    let t : Q(Real) ← reconstructTerm pf.getArguments[1]!
+    let c : Q(Real) ← reconstructTerm pf.getArguments[2]!
+    let lb : Q(Real) ← reconstructTerm pf.getArguments[3]!
+    let ub : Q(Real) ← reconstructTerm pf.getArguments[4]!
+    let val : Q(Real) ← reconstructTerm (pf.getResult[1]!)[1]!
+    let real_d : Q(Nat) := q(Int.natAbs $d - 1)
+    let k : Q(Nat) := q(Nat.div $real_d 2)
+
+    let goalDeg : Q(Prop) := q($real_d = 2 * $k + 1)
+    let (.mvar goalDeg_pf) ← Meta.mkFreshExprMVar (some goalDeg) | throwError "impossible 3"
+    normNumFactorial goalDeg_pf
+
+    let xNeg : Q(Prop) := q($t ≤ 0)
+    let (.mvar xNeg_proof) ← Meta.mkFreshExprMVar (some xNeg) | throwError "impossible 3"
+    normNumFactorial xNeg_proof
+
+    let goalVal : Q(Prop) := q($val = TransFns.sinTaylor $real_d $t - ($t ^ ($real_d + 1) / ($real_d + 1).factorial))
+    let (.mvar goalVal_proof) ← Meta.mkFreshExprMVar (some goalVal) | throwError "impossible 2"
+    normNumFactorial goalVal_proof
+
+    let prop : Q(Prop) ← reconstructTerm pf.getResult
+    let proof ← Meta.mkAppM ``TransFns.arithTransSineApproxBelowNegComp #[real_d, k, t, val, lb, ub, .mvar goalDeg_pf, .mvar xNeg_proof, .mvar goalVal_proof]
+    addThm prop proof
   | _ => return none
 where
 normNumFactorial (mv : MVarId) : MetaM Unit := withTraceNode `smt.reconstruct.normNum traceArithNormNum do

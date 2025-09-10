@@ -103,11 +103,13 @@ partial def reconstructProofImpl : cvc5.Proof → ReconstructM Expr := withProof
 where
   go (rs : List (ProofReconstructor × Name)) (pf : cvc5.Proof) : ReconstructM Expr :=
   withTraceNode ((`smt.reconstruct.proof).str pf.getRule.toString) traceReconstructStep do
+    dbg_trace "RECONSTRUCTING RULE {pf.getRule}"
     for (r, _) in rs do
       if let some e ← r pf then
         return e
     _ ← pf.getChildren.mapM reconstructProof
     let type ← reconstructTerm pf.getResult
+    dbg_trace "ADDING TRUST FOR {pf.getRule}"
     addTrust type pf
 
 end Reconstruct

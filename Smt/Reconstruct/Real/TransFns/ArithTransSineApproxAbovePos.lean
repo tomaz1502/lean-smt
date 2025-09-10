@@ -27,4 +27,12 @@ theorem arithTransSineApproxAbovePos (d k : ℕ) (x : Real) (hd : d = 2*k + 1)
   · linarith
   · linarith
 
+theorem arithTransSineApproxAbovePosComp (d k : ℕ) (x evalTaylor l u : Real) (hd : d = 2*k + 1)
+                                     (hx : 0 < x) (hev : evalTaylor = sinTaylor d x + x ^ (d + 1) / (d + 1).factorial) :
+    (x ≥ l ∧ x ≤ u) → Real.sin x ≤ evalTaylor := by
+  intro _
+  rw [<- sinEmbedding] at hev
+  rw [hev]
+  exact arithTransSineApproxAbovePos d k x hd hx
+
 end Smt.Reconstruct.Real.TransFns

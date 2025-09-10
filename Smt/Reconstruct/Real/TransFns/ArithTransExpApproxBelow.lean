@@ -79,7 +79,7 @@ lemma deriv_taylor (d : ℕ) : deriv (taylorWithinEval Real.exp (d + 1) Set.univ
     simp_all only [Finset.mem_range, ne_eq, Nat.cast_eq_zero, not_false_eq_true, differentiableAt_id',
   DifferentiableAt.pow, DifferentiableAt.div_const]
 
-theorem expApproxAbove (d k : Nat) (hd : d = 2*k) (hx: x < 0) :
+theorem expApproxAbove (d k : Nat) (x : Real) (hd : d = 2*k) (hx: x < 0) :
   Real.exp x ≤ taylorWithinEval Real.exp d Set.univ 0 x := by
   have ⟨x', hx', H⟩ := taylor_mean_remainder_lagrange₁ hx contDiff_exp (n := d)
   rw [taylorWithinEval_eq _ (right_mem_Icc.mpr (le_of_lt hx)) (uniqueDiffOn_Icc hx) contDiff_exp] at H
@@ -111,7 +111,7 @@ theorem taylorWithin_mono : ∀ (d : Nat), Odd d → Monotone (taylorWithinEval 
       positivity
     else
       push_neg at hx
-      have h1 := expApproxAbove (2 * m') m' rfl hx
+      have h1 := expApproxAbove (2 * m') m' x rfl hx
       have h2 : 0 ≤ Real.exp x := exp_nonneg x
       exact Preorder.le_trans 0 (rexp x) (taylorWithinEval rexp (2 * m') univ 0 x) h2 h1
 

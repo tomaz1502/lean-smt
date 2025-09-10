@@ -45,7 +45,7 @@ theorem sineApproxBelowPos {x : ℝ} (d : Nat) (hx : 0 ≤ x):
     · apply mul_nonneg (le_of_lt (pow_pos hx (d + 1))) (by simp [Nat.factorial_pos (d + 1)])
   · simp [<- hx]
 
-theorem ge_of_ConcaveOn (f : ℝ → ℝ) (hf : ConcaveOn Real s f) (hx : x ∈ s) (hz : z ∈ s)
+theorem ge_of_ConcaveOn {s : Set Real} {z t x : Real} (f : ℝ → ℝ) (hf : ConcaveOn Real s f) (hx : x ∈ s) (hz : z ∈ s)
                         (ht0 : 0 ≤ t) (ht1 : t ≤ 1) (hxz : x ≤ z):
     f (t*x + (1-t)*z) ≥ t*(f x) + (1-t)*(f z) := by
   have : ConvexOn Real s (-f) := neg_convexOn_iff.mpr hf
@@ -53,9 +53,9 @@ theorem ge_of_ConcaveOn (f : ℝ → ℝ) (hf : ConcaveOn Real s f) (hx : x ∈ 
   simp_all
   linarith
 
-theorem ge_concave_of_ge {l u t : ℝ} {f p : ℝ → ℝ} (ht : l ≤ t ∧ t ≤ u) (hl : p l ≤ f l) (hu : p u ≤ f u) (hf : ConcaveOn Real s f) (hl1 : l ∈ s) (hu1 : u ∈ s) :
+theorem ge_concave_of_ge {l u t : ℝ} {s : Set Real} {f p : ℝ → ℝ} (ht : l ≤ t ∧ t ≤ u) (hl : p l ≤ f l) (hu : p u ≤ f u) (hf : ConcaveOn Real s f) (hl1 : l ∈ s) (hu1 : u ∈ s) :
     f t ≥ ((p l - p u) / (l - u)) * (t - l) + p l:= by
-  have ⟨hp1, hC1, hC2⟩ := le_secant p ht
+  have ⟨hp1, hC1, hC2⟩ := le_secant l t u p ht
   rw [hp1]
   set C := (t-l)/(u-l)
   cases' (lt_or_eq_of_le (le_trans ht.1 ht.2)) with hlu hlu

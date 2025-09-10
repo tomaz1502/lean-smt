@@ -11,6 +11,7 @@ Definition of a computable version of the taylor polynomial of `exp` to be used 
 
 import Mathlib.Analysis.InnerProductSpace.Basic
 import Smt.Reconstruct.Real.TransFns.Utils
+import Mathlib.Data.Real.Pi.Bounds
 
 open Set Real
 
@@ -180,6 +181,12 @@ def test (d : Nat) (t l u : Rat) : Rat :=
 def test' (d : Nat) (t : Rat) : Rat :=
   let p : ℚ → ℚ := fun x : Rat => sinTaylor' d x - (x ^ (d + 1)) / (d + 1).factorial
   p t
+
+
+#check Real.pi_lt_d20
+
+#check Int.floor_le
+
 
 
 

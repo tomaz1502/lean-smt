@@ -22,7 +22,7 @@ open Set Real
 
 namespace Smt.Reconstruct.Real.TransFns
 
-theorem le_of_ConvexOn (f : ℝ → ℝ) (hf : ConvexOn Real s f) (hx : x ∈ s) (hz : z ∈ s)
+theorem le_of_ConvexOn {z t x : Real} {s : Set Real} (f : ℝ → ℝ) (hf : ConvexOn Real s f) (hx : x ∈ s) (hz : z ∈ s)
                         (ht0 : 0 ≤ t) (ht1 : t ≤ 1) (hxz : x ≤ z):
   f (t*x + (1-t)*z) ≤ t*(f x) + (1-t)*(f z) := by
   cases' eq_or_lt_of_le hxz with hxz hxz
@@ -42,7 +42,7 @@ theorem le_of_ConvexOn (f : ℝ → ℝ) (hf : ConvexOn Real s f) (hx : x ∈ s)
         rw [div_le_div_iff_of_pos_right (by linarith), div_le_iff₀ (by linarith)] at this
         linarith
 
-theorem le_secant (p : ℝ → ℝ) (ht : l ≤ t ∧ t ≤ u) :
+theorem le_secant (l t u : Real) (p : ℝ → ℝ) (ht : l ≤ t ∧ t ≤ u) :
   let C := (t-l)/(u-l)
   ((p l - p u) / (l - u)) * (t - l) + p l = C * p u + (1 - C) * p l ∧ 0 ≤ C ∧ C ≤ 1 := by
   intro C
@@ -56,9 +56,9 @@ theorem le_secant (p : ℝ → ℝ) (ht : l ≤ t ∧ t ≤ u) :
   apply div_le_one_of_le₀ (by linarith) (by linarith)
 
 -- write a theorem here where if f ≤ p then f t ≤ secant...
-theorem le_convex_of_le {l u t : ℝ} {f p : ℝ → ℝ} (ht : l ≤ t ∧ t ≤ u) (hl : f l ≤ p l) (hu : f u ≤ p u) (hf : ConvexOn Real s f) (hl1 : l ∈ s) (hu1 : u ∈ s) :
+theorem le_convex_of_le {l u t : ℝ} {f p : ℝ → ℝ} {s : Set Real} (ht : l ≤ t ∧ t ≤ u) (hl : f l ≤ p l) (hu : f u ≤ p u) (hf : ConvexOn Real s f) (hl1 : l ∈ s) (hu1 : u ∈ s) :
   f t ≤ ((p l - p u) / (l - u)) * (t - l) + p l:= by
-  have ⟨hp1, hC1, hC2⟩ := le_secant p ht
+  have ⟨hp1, hC1, hC2⟩ := le_secant l t u p ht
   rw [hp1]
   set C := (t-l)/(u-l)
   cases' (lt_or_eq_of_le (le_trans ht.1 ht.2)) with hlu hlu
@@ -79,8 +79,8 @@ theorem arithTransExpApproxAboveNeg (d k : Nat) (hd : d = 2*k) (l u t : ℝ) (ht
   intro p
   have hp : ∀ x, p x = taylorWithinEval Real.exp d Set.univ 0 x := fun _ => rfl
   apply le_convex_of_le ht
-        (by rw [hp]; exact expApproxAbove d k hd (lt_of_le_of_lt (le_trans ht.1 ht.2) hu))
-        (by rw [hp]; exact expApproxAbove d k hd hu)
+        (by rw [hp]; exact expApproxAbove d k l hd (lt_of_le_of_lt (le_trans ht.1 ht.2) hu))
+        (by rw [hp]; exact expApproxAbove d k u hd hu)
         convexOn_exp (Set.mem_univ _) (Set.mem_univ _)
 
 theorem arithTransExpApproxAboveNeg' (d k : Nat) (l u t : ℝ) (evalL evalU : ℝ) (hl : taylorWithinEval Real.exp d Set.univ 0 l = evalL) (hu : taylorWithinEval Real.exp d Set.univ 0 u = evalU) (hd : d = 2 * k) (hu' : u < 0):
