@@ -35,4 +35,13 @@ theorem arithTransSineApproxAbovePos (d k : ℕ) (lb ub x c : ℝ) (hd : d = 2*k
   · rw [← sin_pi_sub, ← sin_pi_sub c]
     apply sin_le_sin_of_le_of_le_pi_div_two <;> linarith
 
+theorem arithTransSineApproxAbovePosComp (d k : ℕ) (lb ub x c evalC : ℝ) (hd : d = 2*k + 1)
+    (hc' : evalC = sinTaylor d c + c ^ (d + 1) / (d + 1).factorial)
+    (hl : 0 ≤ lb) (hu : ub ≤ π)
+    (hc : c = if ub < π/2 then ub else if lb < π/2 then π/2 else lb) :
+    (x ≥ lb ∧ x ≤ ub) → Real.sin x ≤ evalC := by
+  rintro ⟨hx1, hx2⟩
+  rw [hc', <- sinEmbedding]
+  exact arithTransSineApproxAbovePos d k lb ub x c hd hl hu hx1 hx2 hc
+
 end Smt.Reconstruct.Real.TransFns

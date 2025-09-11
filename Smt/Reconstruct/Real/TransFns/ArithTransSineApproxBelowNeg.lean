@@ -44,4 +44,13 @@ theorem arithTransSineApproxBelowNeg (d k : ℕ) (lb ub x c : ℝ) (hd : d = 2*k
   · rw [←neg_le_neg_iff, ←sin_neg c, ←sin_neg, ←sin_pi_sub, ←sin_pi_sub (-c)]
     apply sin_le_sin_of_le_of_le_pi_div_two <;> linarith
 
+theorem arithTransSineApproxBelowNegComp (d k : ℕ) (lb ub x c evalC : ℝ) (hd : d = 2*k + 1)
+    (hc' : evalC = sinTaylor d c - c ^ (d + 1) / (d + 1).factorial)
+    (hl : -π ≤ lb) (hu : ub ≤ 0)
+    (hc : c = if -π/2 < lb then lb else if - π/2 < ub then - π/2 else ub) :
+    (x ≥ lb ∧ x ≤ ub) → evalC ≤ sin x := by
+  rintro ⟨hx1, hx2⟩
+  rw [hc', <- sinEmbedding]
+  exact arithTransSineApproxBelowNeg d k lb ub x c hd hl hu hx1 hx2 hc
+
 end Smt.Reconstruct.Real.TransFns
