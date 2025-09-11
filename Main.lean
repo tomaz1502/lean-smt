@@ -93,10 +93,10 @@ def withDecls [Inhabited α] (ss : Array cvc5.Sort) (vs : Array cvc5.Term) (k : 
   withDeclaredSorts ss fun fvNames₁ ts => withDeclaredFuns vs fvNames₁ fun fvNames₂ fvs =>
     k (fvNames₁.fold (·.insert) fvNames₂) (ts ++ fvs)
 
-def checkProof (pf : cvc5.Proof) (native : Bool) : MetaM Unit := withTraceNode `checkProof trace do
+def checkProof (pf : cvc5.Proof) (print_trace : Bool) : MetaM Unit := withTraceNode `checkProof trace do
   let t0 ← IO.monoMsNow
   withDecls (getUninterpretedSorts pf.getResult).toArray (getFreeVars pf.getResult).toArray fun fvNames xs => do
-  let ctx := { userNames := fvNames, native := native }
+  let ctx := { userNames := fvNames, native := true, print_trace := print_trace }
   let (_, _, type, value, mvs) ← Smt.reconstructProof pf ctx
   if !mvs.isEmpty then
     IO.printlnAndFlush "[reconstruct] proof contains trusted steps"
@@ -184,13 +184,13 @@ def solve' (query : String) : IO (Except Error Proof) := do
       return ps[0]
     throw (Error.error s!"Expected a proof, got none")
 
-def checkAndPrintLogs (pf : cvc5.Proof) (native : Bool) : MetaM Unit := do
+def checkAndPrintLogs (pf : cvc5.Proof) (print_trace : Bool) : MetaM Unit := do
   activateScoped `Classical
-  checkProof pf native
+  checkProof pf print_trace
   printTraces
   _ ← Language.reportMessages (← Core.getMessageLog) (← getOptions)
 
-unsafe def solveAndCheck' (query : String) (native : Bool) : IO Unit := do
+unsafe def solveAndCheck' (query : String) (print_trace : Bool) : IO Unit := do
   let t0 ← IO.monoMsNow
   let r ← solve' query
   let t1 ← IO.monoMsNow
@@ -207,7 +207,7 @@ unsafe def solveAndCheck' (query : String) (native : Bool) : IO Unit := do
     IO.printlnAndFlush s!"[time] load: {t1 - t0}"
     let coreContext := { fileName := "cpc-checker", fileMap := default }
     let coreState := { env }
-    _ ← Meta.MetaM.toIO (checkAndPrintLogs pf native) coreContext coreState
+    _ ← Meta.MetaM.toIO (checkAndPrintLogs pf print_trace) coreContext coreState
 
 end Checker
 
@@ -221,8 +221,8 @@ unsafe def main (args : List String) : IO Unit := do
   if args.length < 2 then
     IO.eprintln "Usage: cvc5-checker <native> <file.smt2>"
     return
-  let some native := parseNative args[0]! |
+  let some print_trace := parseNative args[0]! |
     IO.eprintln "Invalid argument for native, expected true or false"
     return
   let query ← IO.FS.readFile args[1]!
-  Checker.solveAndCheck' query native
+  Checker.solveAndCheck' query print_trace

@@ -17,6 +17,7 @@ structure Reconstruct.Context where
   /-- Whether to enable native components for proof reconstruction. Speeds up normalization and
       reduction proof steps. However, it adds the Lean compiler to the trusted code base. -/
   native : Bool := false
+  print_trace : Bool := false
 
 structure Reconstruct.State where
   termCache : Std.HashMap cvc5.Term Expr := {}

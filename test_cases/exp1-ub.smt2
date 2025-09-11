@@ -4,8 +4,9 @@
 (set-info :status unsat)
 (declare-fun x () Real)
 
-(assert (< (exp 1) 2.717))
-(assert (= x (exp 1)))
+(assert (< x 0.99))
+(assert (> x 1.01))
+(assert (< (exp x) 2.715))
 
 
 (check-sat)

@@ -103,11 +103,16 @@ partial def reconstructProofImpl : cvc5.Proof → ReconstructM Expr := withProof
 where
   go (rs : List (ProofReconstructor × Name)) (pf : cvc5.Proof) : ReconstructM Expr :=
   withTraceNode ((`smt.reconstruct.proof).str pf.getRule.toString) traceReconstructStep do
+    let ctx ← read
+    if ctx.print_trace then
+      dbg_trace "RECONSTRUCTING RULE: {pf.getRule}"
     for (r, _) in rs do
       if let some e ← r pf then
         return e
     _ ← pf.getChildren.mapM reconstructProof
     let type ← reconstructTerm pf.getResult
+    if ctx.print_trace then
+      dbg_trace "FAILED TO RECONSTRUCT {pf.getRule}, ADDING HOLE"
     addTrust type pf
 
 end Reconstruct
@@ -171,7 +176,7 @@ open Lean.Elab Tactic in
     match r with
       | .error e => logInfo (repr e)
       | .ok pf =>
-        let (_, _, p, hp, mvs) ← reconstructProof pf ⟨(← getUserNames), false⟩
+        let (_, _, p, hp, mvs) ← reconstructProof pf ⟨(← getUserNames), false, false⟩
         let mv ← Tactic.getMainGoal
         let mv ← mv.assert (Name.num `s 0) p hp
         let (_, mv) ← mv.intro1
