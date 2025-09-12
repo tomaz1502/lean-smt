@@ -11,6 +11,7 @@ https://cvc5.github.io/docs/cvc5-1.0.2/proofs/proof_rules.html#_CPPv4N4cvc58inte
 -/
 
 import Smt.Reconstruct.Real.TransFns.ArithTransSineApproxBelowNeg
+import Mathlib.Data.Real.Pi.Bounds
 
 open Set Real
 
@@ -36,12 +37,26 @@ theorem arithTransSineApproxAbovePos (d k : ℕ) (lb ub x c : ℝ) (hd : d = 2*k
     apply sin_le_sin_of_le_of_le_pi_div_two <;> linarith
 
 theorem arithTransSineApproxAbovePosComp (d k : ℕ) (lb ub x c evalC : ℝ) (hd : d = 2*k + 1)
-    (hc' : evalC = sinTaylor d c + c ^ (d + 1) / (d + 1).factorial)
     (hl : 0 ≤ lb) (hu : ub ≤ π)
+    (hc' : evalC = sinTaylor d c + c ^ (d + 1) / (d + 1).factorial)
     (hc : c = if ub < π/2 then ub else if lb < π/2 then π/2 else lb) :
     (x ≥ lb ∧ x ≤ ub) → Real.sin x ≤ evalC := by
   rintro ⟨hx1, hx2⟩
   rw [hc', <- sinEmbedding]
   exact arithTransSineApproxAbovePos d k lb ub x c hd hl hu hx1 hx2 hc
+
+/- def lb : Real := 1.9 -/
+/- def ub : Real := 2.0 -/
+/- noncomputable def c : Real := 1.9 -/
+
+/- example : c = if ub < π/2 then ub else if lb < π/2 then π/2 else lb := by -/
+/-   unfold c lb ub -/
+/-   split -/
+/-   · linarith [Real.pi_gt_d20, Real.pi_lt_d20] -/
+/-   · split -/
+/-     · linarith [Real.pi_gt_d20, Real.pi_lt_d20] -/
+/-     · linarith [Real.pi_gt_d20, Real.pi_lt_d20] -/
+
+
 
 end Smt.Reconstruct.Real.TransFns

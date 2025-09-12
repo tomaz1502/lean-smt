@@ -725,23 +725,47 @@ def reconstructRealProof : ProofReconstructor := fun pf => do match pf.getRule w
     let prop : Q(Prop) ← reconstructTerm pf.getResult
     let proof ← Meta.mkAppM ``TransFns.arithTransExpApproxAboveNegComp #[d_nat, d_half, l, u, t, evalL, evalU, .mvar mvL, .mvar mvU, .mvar goalDeg_pf, .mvar uNeg_pf]
     addThm prop proof
-  | .ARITH_TRANS_SINE_APPROX_ABOVE_POS =>
-    dbg_trace "[[ABOVE POS]]"
+  | .ARITH_TRANS_SINE_APPROX_BELOW_NEG =>
     let d : Q(Int) ← reconstructTerm pf.getArguments[0]!
     let t : Q(Real) ← reconstructTerm pf.getArguments[1]!
     let c : Q(Real) ← reconstructTerm pf.getArguments[2]!
     let lb : Q(Real) ← reconstructTerm pf.getArguments[3]!
-    let ub : Q(Real) ← reconstructTerm pf.getArguments[3]!
+    let ub : Q(Real) ← reconstructTerm pf.getArguments[4]!
+    let eval_c : Q(Real) ← reconstructTerm (pf.getResult[1]!)[1]!
     let real_d : Q(Nat) := q(Int.natAbs $d - 1)
-    /- let l ← reconstructTerm pf.getArguments[4]! -/
-    /- let u ← reconstructTerm pf.getArguments[5]! -/
-    dbg_trace "d = {pf.getArguments[0]!}"
-    dbg_trace "t = {pf.getArguments[1]!}"
-    dbg_trace "c = {pf.getArguments[2]!}"
-    dbg_trace "lb = {pf.getArguments[3]!}"
-    dbg_trace "ub = {pf.getArguments[4]!}"
-    dbg_trace "result = {pf.getResult}"
-    return none
+    let d_half : Q(Nat) := q(Nat.div $real_d 2)
+
+    let goalDeg : Q(Prop) := q($real_d = 2 * $d_half + 1)
+    let (.mvar goalDeg_pf) ← Meta.mkFreshExprMVar (some goalDeg) | throwError "impossible 3"
+    normNumFactorial goalDeg_pf
+
+    let goal_l_bound : Q(Prop) := q(-Real.pi ≤ $lb)
+    let (.mvar mv_l_bound) ← Meta.mkFreshExprMVar (some goal_l_bound) | throwError "impossible 3"
+    Linarith.linarith false [.const `Real.pi_gt_d20 [], .const `Real.pi_lt_d20 []] (g := mv_l_bound)
+
+    let ubBound : Q(Prop) := q($ub ≤ 0)
+    let (.mvar ubBound_pf) ← Meta.mkFreshExprMVar (some ubBound) | throwError "impossible 4"
+    -- linarith [pi_gt_d20, pi_lt_d20] at ubBound_pf
+    Linarith.linarith false [.const `Real.pi_gt_d20 [], .const `Real.pi_lt_d20 []] (g := ubBound_pf)
+
+    let goalC : Q(Prop) := q($eval_c = TransFns.sinTaylor $real_d $c - ($c ^ ($real_d + 1) / ($real_d + 1).factorial))
+    let (.mvar mvC) ← Meta.mkFreshExprMVar (some goalC) | throwError "impossible 2"
+    normNumFactorial mvC
+
+    let goalIf : Q(Prop) := q($c = if -Real.pi/2 < $lb then $lb else if - Real.pi/2 < $ub then -Real.pi/2 else $ub)
+    let (.mvar if_proof) ← Meta.mkFreshExprMVar (some goalIf) | throwError "impossible 4"
+    let some [if1, if2] ← Meta.splitTarget? if_proof | throwError "split 1"
+
+    let some [if3, if4] ← Meta.splitTarget? if2 | throwError "split 2"
+
+    Linarith.linarith false [.const `Real.pi_gt_d20 [], .const `Real.pi_lt_d20 []] (g := if1)
+    Linarith.linarith false [.const `Real.pi_gt_d20 [], .const `Real.pi_lt_d20 []] (g := if3)
+    Linarith.linarith false [.const `Real.pi_gt_d20 [], .const `Real.pi_lt_d20 []] (g := if4)
+
+    let prop : Q(Prop) ← reconstructTerm pf.getResult
+    let proof ← Meta.mkAppM ``TransFns.arithTransSineApproxBelowNegComp
+      #[real_d, d_half, lb, ub, t, c, eval_c, .mvar goalDeg_pf, .mvar mvC,  .mvar mv_l_bound, .mvar ubBound_pf, .mvar if_proof]
+    addThm prop proof
   | .ARITH_TRANS_SINE_APPROX_ABOVE_NEG =>
     let d : Q(Int) ← reconstructTerm pf.getArguments[0]!
     let t : Q(Real) ← reconstructTerm pf.getArguments[1]!
@@ -807,15 +831,45 @@ def reconstructRealProof : ProofReconstructor := fun pf => do match pf.getRule w
     let pf ← Meta.mkAppM ``TransFns.arithTransSineApproxBelowPosComp
       #[real_d, t, lb, ub, l, u, .mvar lbNonneg_pf, .mvar ubBound_pf, .mvar mvL, .mvar mvU]
     addThm prop pf
-  | .ARITH_TRANS_SINE_APPROX_BELOW_NEG =>
-    dbg_trace "[[BELOW NEG]]"
-    dbg_trace "d = {pf.getArguments[0]!}"
-    dbg_trace "t = {pf.getArguments[1]!}"
-    dbg_trace "c = {pf.getArguments[2]!}"
-    dbg_trace "lb = {pf.getArguments[3]!}"
-    dbg_trace "ub = {pf.getArguments[4]!}"
-    dbg_trace "result = {pf.getResult}"
-    return none
+  | .ARITH_TRANS_SINE_APPROX_ABOVE_POS =>
+    let d : Q(Int) ← reconstructTerm pf.getArguments[0]!
+    let t : Q(Real) ← reconstructTerm pf.getArguments[1]!
+    let c : Q(Real) ← reconstructTerm pf.getArguments[2]!
+    let lb : Q(Real) ← reconstructTerm pf.getArguments[3]!
+    let ub : Q(Real) ← reconstructTerm pf.getArguments[4]!
+    let eval_c : Q(Real) ← reconstructTerm (pf.getResult[1]!)[1]!
+    let real_d : Q(Nat) := q(Int.natAbs $d - 1)
+    let d_half : Q(Nat) := q(Nat.div $real_d 2)
+    let goalDeg : Q(Prop) := q($real_d = 2 * $d_half + 1)
+    let (.mvar goalDeg_pf) ← Meta.mkFreshExprMVar (some goalDeg) | throwError "impossible 3"
+    normNumFactorial goalDeg_pf
+
+    let goal_l_nonneg : Q(Prop) := q(0 ≤ $lb)
+    let (.mvar mv_l_nonneg) ← Meta.mkFreshExprMVar (some goal_l_nonneg) | throwError "impossible 3"
+    Linarith.linarith false [.const `Real.pi_gt_d20 [], .const `Real.pi_lt_d20 []] (g := mv_l_nonneg)
+
+    let ubBound : Q(Prop) := q($ub ≤ Real.pi)
+    let (.mvar ubBound_pf) ← Meta.mkFreshExprMVar (some ubBound) | throwError "impossible 4"
+    -- linarith [pi_gt_d20, pi_lt_d20] at ubBound_pf
+    Linarith.linarith false [.const `Real.pi_gt_d20 [], .const `Real.pi_lt_d20 []] (g := ubBound_pf)
+
+    let goalC : Q(Prop) := q($eval_c = TransFns.sinTaylor $real_d $c + ($c ^ ($real_d + 1) / ($real_d + 1).factorial))
+    let (.mvar mvC) ← Meta.mkFreshExprMVar (some goalC) | throwError "impossible 2"
+    normNumFactorial mvC
+
+    let goalIf : Q(Prop) := q($c = if $ub < Real.pi/2 then $ub else if $lb < Real.pi/2 then Real.pi/2 else $lb)
+    let (.mvar if_proof) ← Meta.mkFreshExprMVar (some goalIf) | throwError "impossible 4"
+    let some [if1, if2] ← Meta.splitTarget? if_proof | throwError "split 1"
+    let some [if3, if4] ← Meta.splitTarget? if2 | throwError "split 2"
+
+    Linarith.linarith false [.const `Real.pi_gt_d20 [], .const `Real.pi_lt_d20 []] (g := if1)
+    Linarith.linarith false [.const `Real.pi_gt_d20 [], .const `Real.pi_lt_d20 []] (g := if3)
+    Linarith.linarith false [.const `Real.pi_gt_d20 [], .const `Real.pi_lt_d20 []] (g := if4)
+
+    let prop : Q(Prop) ← reconstructTerm pf.getResult
+    let proof ← Meta.mkAppM ``TransFns.arithTransSineApproxAbovePosComp
+      #[real_d, d_half, lb, ub, t, c, eval_c, .mvar goalDeg_pf, .mvar mv_l_nonneg, .mvar ubBound_pf, .mvar mvC, .mvar if_proof]
+    addThm prop proof
   | _ => return none
 where
 normNumFactorial (mv : MVarId) : MetaM Unit := withTraceNode `smt.reconstruct.normNum traceArithNormNum do
